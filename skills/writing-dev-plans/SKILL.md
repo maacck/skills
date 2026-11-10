@@ -1,6 +1,6 @@
 ---
 name: writing-dev-plans
-description: Use when work needs a written plan before coding — unsettled architecture or technology choices, decisions worth recording as ADRs, features spanning many files or milestones, changes in unfamiliar or history-heavy code, work split across subagents and tracked to completion, adjustments to an existing plan, or when the user asks for a design doc, implementation plan, blindspot pass, or help finding unknown unknowns.
+description: Use when work needs a written plan before coding — unsettled architecture or technology choices, decisions worth recording as ADRs, features spanning many files or milestones, changes in unfamiliar or history-heavy code, work split across subagents and tracked to completion, adjustments to an existing plan, or when the user asks for a design doc, implementation plan, plan review, blindspot pass, or help finding unknown unknowns.
 ---
 
 # Writing Dev Plans
@@ -22,9 +22,9 @@ Two documents, one flow: **plan → impl → execution**, all in the current ses
 
 ## Flow
 
-1. **Plan** — research, write `plan.md`, pass the alignment gate.
-2. **Impl** — derive `impl.md` from the aligned plan, self-review, pass the approval gate.
-3. **Execute** — implement task by task, tracking progress in `impl.md`.
+1. **Plan** — research, write `plan.md`, optional independent review, pass the alignment gate.
+2. **Impl** — derive `impl.md` from the aligned plan, self-review, optional independent review, pass the approval gate and choose the execution mode.
+3. **Execute** — implement task by task, inline or through subagents, tracking progress in `impl.md`.
 
 **Shortcut:** direction already discussed and confirmed with the user in this conversation → start at step 2 and list the agreed decisions under `Source:` in the impl header.
 
@@ -86,7 +86,7 @@ Plans fail on what nobody wrote down. Every unknown the plan leaves open becomes
 | Unknown knowns | Tacit preferences the user would recognize but never state | Show, don't ask; ask for a reference |
 | Unknown unknowns | Traps in the territory nobody has considered | Blindspot pass |
 
-**Blindspot pass** — before planning changes in code the user hasn't worked in, or any area with history (migrations, reverts, flags). Follow `blindspot-prompt.md`: inline, or as a read-only subagent for large areas. Each finding carries evidence, why it bites, and where it lands: Constraint, Risk, ADR, task, or Open Question. Record findings in the Blindspots table. A finding that changes nothing in the plan is noise; drop it.
+**Blindspot pass** — before planning changes in code the user hasn't worked in, or any area with history (migrations, reverts, flags). Follow `references/blindspot-prompt.md`: inline, or as a read-only subagent for large areas. Each finding carries evidence, why it bites, and where it lands: Constraint, Risk, ADR, task, or Open Question. Record findings in the Blindspots table. A finding that changes nothing in the plan is noise; drop it.
 
 **Interview** — for what only the user can answer: one question at a time, highest blast radius first (answers that change architecture or data model before naming and UX details). Each question carries your recommended answer and what it would change. Stop once remaining answers would not change the plan; adopt your recommended defaults and list them as assumptions.
 
@@ -98,7 +98,7 @@ Plans fail on what nobody wrote down. Every unknown the plan leaves open becomes
 
 Skeleton: `templates/plan.md`. ADRs live inline under **Decisions**, numbered `ADR-1…`, status `proposed → accepted | superseded by ADR-N`.
 
-**Alignment gate:** present options, proposed ADRs, blindspots, and open questions (tweakable presentation), then stop — no `impl.md` yet. When the user confirms: mark ADRs `accepted`, record answers under Open Questions, set Status `aligned`, then write `impl.md`.
+**Alignment gate:** present options, proposed ADRs, blindspots, and open questions (tweakable presentation), and offer an independent review ([Review](#review)), then stop — no `impl.md` yet. When the user confirms: mark ADRs `accepted`, record answers under Open Questions, set Status `aligned`, then write `impl.md`.
 
 ## Implementation
 
@@ -123,7 +123,7 @@ Skeleton: `templates/impl.md`. Baseline sections by need; add more per [Template
 
 **Forbidden in a finished plan:** TBD/TODO placeholders, leftover `{{…}}`, "add error handling / validation / handle edge cases" without specifics, "similar to Tn", types or functions used but never defined, Modify paths not checked to exist.
 
-**Approval gate:** present Contracts and user-facing decisions first (tweakable presentation), then the milestone/task outline and the Done-when check. Execute only after the user approves; set Status `approved`.
+**Approval gate:** present Contracts and user-facing decisions first (tweakable presentation), then the milestone/task outline and the Done-when check. In the same question, offer an independent review ([Review](#review)) and the execution mode with your recommendation ([Execute](#execute)). Execute only after the user approves; set Status `approved` and the header `Execution`.
 
 ## Tracking Progress
 
@@ -131,7 +131,7 @@ Skeleton: `templates/impl.md`. Baseline sections by need; add more per [Template
 
 - Task status lives in the heading: `[todo]`, `[doing]`, `[done]`, `[blocked: reason]`, `[dropped: reason]`. Overview: `grep -n '^### T' impl.md`.
 - Update at every transition, immediately: heading status, step checkboxes, header Status, one Progress log entry with evidence (`2026-09-25 14:10 · T3 done · repo.test.ts 6/6 pass`). Entry kinds: `done`, `discovery` (a trap or convention found, no plan change), `deviation`, `needs-user`, `change`.
-- **Single writer:** the orchestrating agent edits `impl.md`; subagents never do — concurrent edits clobber each other. Dispatch with the absolute `impl.md` path, the task ID, and: "Read Contracts and your task section. Do not edit the plan. Report files changed, Verify output, deviations, discoveries."
+- **Single writer:** the orchestrating agent edits `impl.md`; subagents never do — concurrent edits clobber each other. Subagents write only to their own run folder (`references/subagent-execution.md`).
 - Code contradicts a step but the fix stays within accepted ADRs → take the most conservative option, log a `deviation` (plan said / code revealed / choice taken / revisit), continue. Product calls you shouldn't make alone → log `needs-user`, pick the strictest defensible default, continue unless blocked.
 - Anything that breaks an accepted ADR or a goal → stop; handle it as a change (next section). Never diverge silently.
 - New session: read `plan.md` (Status `draft` → re-present open questions) and `impl.md`; resume at the first task not `done`.
@@ -162,11 +162,29 @@ Tell the user which documents changed and why.
 5. Every task and milestone has a concrete Verify.
 6. Depth: take the hardest task. Could a zero-context implementer finish it without asking a question or guessing? If not, add the missing contract, example code, or section.
 
-Fix inline. For >~10 tasks or subagent execution, also dispatch a fresh reviewer with `reviewer-prompt.md`; fix blocking issues before presenting.
+Fix inline.
+
+## Review
+
+Self-review always runs. An independent review — a fresh read-only subagent with `references/reviewer-prompt.md` — is the user's call, offered as a gate option next to approve/revise.
+
+- Recommend it when the document is high-risk (data migration, security, public API, irreversible step), has >~10 tasks, will run through subagents, or covers unfamiliar code; otherwise list it as optional. Declined → proceed, don't re-offer at the same gate.
+- Alignment gate → mode `plan` on `plan.md`; approval gate → mode `impl` on `impl.md`. The user may also ask for a review at any time; same procedure.
+- Handling the result: fix blocking issues in the document; the reviewer's user questions go to Open Questions or the interview. Re-present with the verdict, what you changed, and what you rejected and why. Re-review only after substantial fixes, at most two rounds; then the user decides.
 
 ## Execute
 
-Set Status `in-progress`. Inline for sequential or small tasks; subagents for independent tasks along the dependency graph. Finish with the header's Done-when check, then set Status `done`. Report to the user: every `deviation` and open `needs-user` entry, plus lessons the next plan should know up front (fold them into `plan.md` Blindspots if work continues). Plan files stay in `.plans/`, local only.
+**Choose the mode** at the approval gate. Recommend from the plan's shape; the user decides:
+
+| Plan shape | Recommend |
+|---|---|
+| ≤3 tasks, or one chain of tightly coupled tasks | inline — don't ask, state it |
+| Tasks need frequent user feedback (UI tuning, exploratory work) | inline |
+| >~8 tasks, independent branches in the dependency graph, or a long run that would crowd this session's context | subagents |
+
+Record it in the header (`Execution: inline | subagents`). Switching mid-run: update the header, log a `change`.
+
+Set Status `in-progress`. **Inline:** implement task by task in this session. **Subagents:** follow `references/subagent-execution.md`. Finish with the header's Done-when check, then set Status `done`. Report to the user: every `deviation` and open `needs-user` entry, plus lessons the next plan should know up front (fold them into `plan.md` Blindspots if work continues). Plan files stay in `.plans/`, local only.
 
 ## Common Mistakes
 
@@ -180,5 +198,8 @@ Set Status `in-progress`. Inline for sequential or small tasks; subagents for in
 | Task too big ("build the API") | Split until each task has one Verify |
 | Subagents editing the tracker | Orchestrator is the only writer |
 | `.plans` added to the project `.gitignore` | `.plans/.gitignore` already ignores the folder |
-| Planning unfamiliar code without a blindspot pass | Run `blindspot-prompt.md` before writing the plan |
+| Planning unfamiliar code without a blindspot pass | Run `references/blindspot-prompt.md` before writing the plan |
 | Ten questions dumped on the user at once | Interview: one at a time, highest blast radius first |
+| Trusting a subagent's "done" | Accept on evidence: rerun Verify, diff ⊆ task Files |
+| Re-dispatching a failed task with the same instruction | New attempt folder with a brief; change context, scope, or model |
+| Pushing a review the user declined | Offer once per gate, then proceed |

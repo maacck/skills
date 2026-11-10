@@ -1,8 +1,9 @@
-<!-- Skeleton, not a form: add, split, rename, reorder, or delete sections to fit the problem. Keep only the tracking formats fixed (Status, `### T<n>: name [status]`, Depends on, Verify, Progress log kinds). -->
+<!-- Skeleton, not a form: add, split, rename, reorder, or delete sections to fit the problem. Keep only the tracking formats fixed (Status, Execution, `### T<n>: name [status]`, Depends on, Verify, Progress log kinds). -->
 
 # {{Title}} · Implementation
 
 - Status: draft <!-- draft | approved | in-progress | done -->
+- Execution: inline <!-- inline | subagents; set at the approval gate; subagent runs live in ./runs/ -->
 - Date: {{DATE}}
 - Source: {{./plan.md — or "agreed in conversation, DATE" followed by the agreed decisions as bullets}}
 - Goal: {{One sentence}}
