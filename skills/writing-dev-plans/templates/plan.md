@@ -1,4 +1,8 @@
-<!-- Skeleton, not a form: add, split, rename, reorder, or delete sections to fit the problem. Keep only the tracking formats fixed (Status, ADR numbering/status). -->
+---
+skill: writing-dev-plans
+format: 2
+---
+<!-- Skeleton, not a form: add, split, rename, reorder, or delete sections to fit the problem. Keep only the tracking formats fixed (frontmatter (skill, format), Status, ADR numbering/status, ## At a Glance). -->
 
 # {{Title}} · Plan
 
@@ -6,6 +10,13 @@
 - Date: {{DATE}}
 - Success check: {{observable end-to-end result proving the direction works}}
 - Implementation: ./impl.md <!-- written after alignment -->
+
+## At a Glance
+
+<!-- Fixed heading. 3–5 bullets: decisions the user is most likely to change (with the alternative), the weakest part of the plan, what you need from the user. -->
+
+- {{decision most likely to change}} — alternative: {{option}}
+- Weakest part: {{…}}
 
 ## Context
 

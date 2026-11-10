@@ -1,4 +1,8 @@
-<!-- Skeleton, not a form: add, split, rename, reorder, or delete sections to fit the problem. Keep only the tracking formats fixed (Status, Execution, `### T<n>: name [status]`, Depends on, Verify, Progress log kinds). -->
+---
+skill: writing-dev-plans
+format: 2
+---
+<!-- Skeleton, not a form: add, split, rename, reorder, or delete sections to fit the problem. Keep only the tracking formats fixed (frontmatter (skill, format), Status, Execution, `### T<n>: name [status]`, Depends on, Verify, Progress log kinds). -->
 
 # {{Title}} · Implementation
 

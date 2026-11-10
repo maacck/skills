@@ -47,7 +47,8 @@ Creates or reuses `.plans/YYYY-MM-DD-<slug>/` at the repository (worktree) root,
 
 `templates/` gives a starting shape, not a form to fill. Depth follows the problem's complexity, not the skeleton's length; a complex change whose plan merely fills the skeleton is under-planned.
 
-- **Fixed** (tracking and review depend on it): header `Status`, ADR numbering and statuses, task headings `### T<n>: <name> [status]` with `Depends on` and `Verify`, Progress log entry kinds.
+- **Fixed** (tracking and review depend on it): frontmatter `skill` and `format`, header `Status`, plan's `## At a Glance`, ADR numbering and statuses, task headings `### T<n>: <name> [status]` with `Depends on` and `Verify`, Progress log entry kinds.
+- Changing Fixed requires incrementing `format` in both templates, marking new rules with `since` in `scripts/lib/lint.mjs`, and adding a fixture for the new format.
 - **Free**: everything else. Add, split, rename, reorder, or delete sections. Delete sections that would stay empty.
 - When a section is too small for what it must carry, expand it or add a dedicated one. Common additions:
 
@@ -98,6 +99,8 @@ Plans fail on what nobody wrote down. Every unknown the plan leaves open becomes
 
 Skeleton: `templates/plan.md`. ADRs live inline under **Decisions**, numbered `ADR-1…`, status `proposed → accepted | superseded by ADR-N`.
 
+Write `## At a Glance` as a concise summary of the direction, key decisions, and weakest point. When presenting the first plan draft, ask about visual HTML as described in `references/viewer.md`; for the conversation shortcut, ask at the first impl draft instead. If accepted, generate visual-impl automatically when the impl draft is ready.
+
 **Alignment gate:** present options, proposed ADRs, blindspots, and open questions (tweakable presentation), and offer an independent review ([Review](#review)), then stop — no `impl.md` yet. When the user confirms: mark ADRs `accepted`, record answers under Open Questions, set Status `aligned`, then write `impl.md`.
 
 ## Implementation
@@ -131,10 +134,11 @@ Skeleton: `templates/impl.md`. Baseline sections by need; add more per [Template
 
 - Task status lives in the heading: `[todo]`, `[doing]`, `[done]`, `[blocked: reason]`, `[dropped: reason]`. Overview: `grep -n '^### T' impl.md`.
 - Update at every transition, immediately: heading status, step checkboxes, header Status, one Progress log entry with evidence (`2026-09-25 14:10 · T3 done · repo.test.ts 6/6 pass`). Entry kinds: `done`, `discovery` (a trap or convention found, no plan change), `deviation`, `needs-user`, `change`.
+- After every `impl.md` update, run `node <skill-dir>/scripts/lint-plan.mjs <plan-dir>` and clear errors.
 - **Single writer:** the orchestrating agent edits `impl.md`; subagents never do — concurrent edits clobber each other. Subagents write only to their own run folder (`references/subagent-execution.md`).
 - Code contradicts a step but the fix stays within accepted ADRs → take the most conservative option, log a `deviation` (plan said / code revealed / choice taken / revisit), continue. Product calls you shouldn't make alone → log `needs-user`, pick the strictest defensible default, continue unless blocked.
 - Anything that breaks an accepted ADR or a goal → stop; handle it as a change (next section). Never diverge silently.
-- New session: read `plan.md` (Status `draft` → re-present open questions) and `impl.md`; resume at the first task not `done`.
+- New session: read `plan.md` (Status `draft` → re-present open questions) and `impl.md`; run `lint-plan.mjs` and `visual-status.mjs` as described in `references/viewer.md`, then resume at the first task not `done`.
 
 ## Changing Course
 
@@ -150,17 +154,19 @@ Then in `impl.md`:
 - `[done]` tasks the change invalidates → `[todo]` with what to redo; obsolete tasks → `[dropped: reason]`.
 - Update Contracts, Scope, and Done-when if affected.
 - Progress log: `<time> · change · <summary> · plan ADR-N` or `· impl only`.
+- After a confirmed change, synchronize existing visual documents per `references/viewer.md`.
 
 Tell the user which documents changed and why.
 
 ## Self-Review Before Presenting
 
-1. Coverage: each goal or requirement maps to ≥1 task.
-2. `grep -nE 'TBD|TODO|\{\{' <file>` → every hit is a quoted code identifier, not a placeholder.
-3. Names and signatures in tasks match Contracts.
-4. Dependency graph has no cycles; parallel tasks share no files.
-5. Every task and milestone has a concrete Verify.
-6. Depth: take the hardest task. Could a zero-context implementer finish it without asking a question or guessing? If not, add the missing contract, example code, or section.
+1. Run `node <skill-dir>/scripts/lint-plan.mjs <plan-dir>` and clear all errors. If Node is unavailable, say so and fall back to manual checks. Before each gate, if visual documents exist, run `node <skill-dir>/scripts/visual-status.mjs <plan-dir>` and synchronize until it exits 0; see `references/viewer.md`.
+2. Coverage: each goal or requirement maps to ≥1 task.
+3. `grep -nE 'TBD|TODO|\{\{' <file>` → every hit is a quoted code identifier, not a placeholder.
+4. Names and signatures in tasks match Contracts.
+5. Dependency graph has no cycles; parallel tasks share no files.
+6. Every task and milestone has a concrete Verify.
+7. Depth: take the hardest task. Could a zero-context implementer finish it without asking a question or guessing? If not, add the missing contract, example code, or section.
 
 Fix inline.
 
@@ -184,6 +190,8 @@ Self-review always runs. An independent review — a fresh read-only subagent wi
 
 Record it in the header (`Execution: inline | subagents`). Switching mid-run: update the header, log a `change`.
 
+Before execution, ask whether to open the progress page as described in `references/viewer.md`.
+
 Set Status `in-progress`. **Inline:** implement task by task in this session. **Subagents:** follow `references/subagent-execution.md`. Finish with the header's Done-when check, then set Status `done`. Report to the user: every `deviation` and open `needs-user` entry, plus lessons the next plan should know up front (fold them into `plan.md` Blindspots if work continues). Plan files stay in `.plans/`, local only.
 
 ## Common Mistakes
@@ -203,3 +211,5 @@ Set Status `in-progress`. **Inline:** implement task by task in this session. **
 | Trusting a subagent's "done" | Accept on evidence: rerun Verify, diff ⊆ task Files |
 | Re-dispatching a failed task with the same instruction | New attempt folder with a brief; change context, scope, or model |
 | Pushing a review the user declined | Offer once per gate, then proceed |
+| Presenting a gate with stale visual documents | Run `visual-status.mjs` and synchronize to fresh before presenting |
+| Changing Fixed without bumping format | Increment both template formats, version lint rules, and add a fixture |

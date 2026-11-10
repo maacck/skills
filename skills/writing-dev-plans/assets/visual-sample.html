@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan Viewer · Plan</title>
+<script>document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';</script>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #111314; --paper: #16191b; --raised: #1d2124; --wash: #23282a; --selected: #2a3030;
+  --ink: #e8e6df; --muted: #a6a49c; --faint: #7d7b75; --line: #31373a; --line-strong: #454c4f;
+  --accent: #96aaa1; --accent-ink: #b9cbc3; --accent-wash: rgba(150, 170, 161, .12);
+  --success: #8db899; --warning: #c5a66d; --warning-wash: rgba(197, 166, 109, .1); --error: #cf8d84;
+  --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+  --mono: "SFMono-Regular", "Cascadia Mono", "Sarasa Mono SC", Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef1f2; --paper: #f8fafa; --raised: #ffffff; --wash: #e7ecec; --selected: #d9e1e1;
+  --ink: #1b2124; --muted: #4f5a60; --faint: #6b767c; --line: #d3dadb; --line-strong: #b4bfc1;
+  --accent: #35604f; --accent-ink: #2b5142; --accent-wash: rgba(53, 96, 79, .08);
+  --success: #2b6a43; --warning: #765414; --warning-wash: rgba(118, 84, 20, .07); --error: #a1362b;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; scrollbar-color: var(--line-strong) var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.7 var(--sans); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--accent); color: var(--paper); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+h1, h2, h3, h4, p, ul, ol, dl { margin: 0; }
+code { padding: 1px 5px; border-radius: 3px; background: var(--wash); font: .88em/1.5 var(--mono); overflow-wrap: anywhere; }
+button { font: inherit; color: inherit; }
+
+/* Chrome */
+.topbar { position: sticky; top: 0; z-index: 20; height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: saturate(1.2) blur(8px); border-bottom: 1px solid var(--line); font-size: 13px; }
+.topbar .doc { font-weight: 600; }
+.topbar .path { flex: 1; min-width: 0; color: var(--muted); font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toggle { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
+.toggle:hover { color: var(--ink); border-color: var(--line-strong); }
+
+.layout { display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 48px; max-width: 1320px; margin: 0 auto; padding: 0 32px; }
+.toc { position: sticky; top: 52px; align-self: start; padding: 40px 0; font-size: 13px; }
+.toc a { display: block; padding: 5px 10px; border-radius: 4px; color: var(--muted); text-decoration: none; }
+.toc a:hover { color: var(--ink); }
+.toc a[aria-current="true"] { background: var(--wash); color: var(--ink); }
+main { min-width: 0; padding: 40px 0 72px; }
+
+/* Document */
+.head { padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+.head h1 { font-size: 30px; line-height: 1.25; font-weight: 650; letter-spacing: -.02em; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 18px; color: var(--muted); font-size: 13px; }
+.facts b { color: var(--ink); font-weight: 600; margin-right: 4px; }
+section.doc-section { padding-top: 48px; }
+.doc-section > h2 { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; font-size: 20px; font-weight: 650; letter-spacing: -.01em; }
+.doc-section > h2 small { color: var(--faint); font-size: 12.5px; font-weight: 400; letter-spacing: 0; }
+.lede { max-width: 72ch; margin-bottom: 18px; color: var(--muted); }
+h3 { font-size: 15px; font-weight: 600; }
+
+.badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.badge.ok { color: var(--success); border-color: color-mix(in srgb, var(--success) 55%, transparent); }
+.chip { display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--muted); font: 11.5px/1 var(--mono); white-space: nowrap; cursor: pointer; }
+.chip:hover, .chip.is-on { color: var(--accent-ink); border-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* Glance */
+.glance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.card { padding: 16px 18px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.glance .card { display: grid; gap: 8px; align-content: start; }
+.glance .card p { font-size: 14px; }
+.glance .card.is-weak { border-color: color-mix(in srgb, var(--warning) 45%, transparent); background: var(--warning-wash); }
+.glance .card.is-weak h3 { color: var(--warning); }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.checks ol { margin: 0; padding-left: 20px; font-size: 14px; }
+.checks li + li { margin-top: 8px; }
+.checks li::marker { color: var(--faint); }
+.constraints { margin: 0; padding-left: 18px; font-size: 14px; }
+.constraints li + li { margin-top: 8px; }
+
+/* System map */
+.map-wrap { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow: hidden; }
+.map-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+.map-bar .legend { display: inline-flex; align-items: center; gap: 6px; }
+.map-bar svg { width: 26px; height: 8px; }
+.map-bar .reset { margin-left: auto; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
+.map { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; padding: 0 12px; }
+.lane { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 22px; padding: 14px 18px 22px; }
+.lane + .lane { border-left: 1px dashed var(--line); }
+.lane-title { color: var(--faint); font: 11px/1.4 var(--mono); letter-spacing: .04em; }
+.node { width: 100%; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised); text-align: left; cursor: pointer; transition: opacity .18s ease, border-color .18s ease, background-color .18s ease; }
+.node b { display: block; font: 600 12.5px/1.45 var(--mono); overflow-wrap: break-word; }
+.node span { display: -webkit-box; margin-top: 3px; overflow: hidden; color: var(--faint); font-size: 12px; line-height: 1.45; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.node span code { padding: 0; background: none; font-size: 11.5px; }
+.node:hover { border-color: var(--accent); }
+.node.is-sel { border-color: var(--accent); background: var(--accent-wash); box-shadow: 0 0 0 1px var(--accent); }
+.node.is-rel { border-color: var(--accent); }
+.map.has-sel .node:not(.is-sel):not(.is-rel) { opacity: .32; }
+.edges { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.edges path { fill: none; stroke: var(--line-strong); stroke-width: 1.3; transition: stroke .18s ease, opacity .18s ease; }
+.edges path.dashed { stroke-dasharray: 4 4; }
+.edges text { fill: var(--faint); font: 10.5px var(--sans); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
+.edges .arrow { fill: var(--line-strong); }
+.edges .on path { stroke: var(--accent); stroke-width: 1.8; }
+.edges .on .arrow-head { fill: var(--accent); }
+.map.has-sel .edges g:not(.on) { opacity: .25; }
+.inspect { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; padding: 18px 20px 20px; border-top: 1px solid var(--line); min-height: 132px; }
+.inspect.is-empty { display: block; color: var(--muted); font-size: 13.5px; }
+.inspect h3 { font: 600 14px/1.4 var(--mono); }
+.inspect .role { margin-top: 4px; color: var(--muted); font-size: 14px; }
+.kv { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px 12px; margin-top: 14px; font-size: 13.5px; }
+.kv dt { color: var(--faint); font-size: 12.5px; }
+.kv dd { margin: 0; }
+.kv ul { margin: 0; padding: 0; list-style: none; }
+.kv li + li { margin-top: 4px; }
+.adr-links { display: grid; gap: 8px; }
+.adr-link { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: transparent; text-align: left; cursor: pointer; font-size: 13.5px; }
+.adr-link:hover { border-color: var(--accent); }
+.adr-link b { font: 600 12px/1.6 var(--mono); color: var(--accent-ink); }
+.adr-link span span { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+
+/* Decisions */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { padding: 10px 14px; background: var(--wash); color: var(--muted); font-size: 12px; font-weight: 600; text-align: left; white-space: nowrap; }
+td { padding: 12px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+td.id { width: 78px; font: 600 12.5px/1.7 var(--mono); color: var(--accent-ink); white-space: nowrap; }
+.dec-row { cursor: pointer; }
+.dec-row:hover td { background: var(--accent-wash); }
+.dec-row .title { font-weight: 600; }
+.dec-row .sum { margin-top: 3px; color: var(--muted); font-size: 13.5px; }
+.dec-row .rej { color: var(--muted); font-size: 13px; }
+.dec-row .rej li { list-style: none; }
+.dec-row .rej li::before { content: "×"; margin-right: 6px; color: var(--faint); }
+.dec-row td.state { width: 96px; text-align: right; white-space: nowrap; }
+.caret { display: inline-block; width: 16px; color: var(--faint); transition: transform .18s ease; }
+.dec-row[aria-expanded="true"] .caret { transform: rotate(90deg); }
+.dec-row[aria-expanded="true"] td { background: var(--accent-wash); }
+.dec-detail td { padding: 0; background: var(--bg); }
+.dec-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; padding: 18px 20px 22px 92px; font-size: 14px; }
+.dec-body .full { grid-column: 1 / -1; }
+.dec-body h4 { margin-bottom: 6px; color: var(--faint); font-size: 12px; font-weight: 600; }
+.dec-body ul { margin: 0; padding-left: 18px; }
+.dec-body li + li { margin-top: 4px; }
+.pick { padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--success) 40%, transparent); border-radius: 6px; }
+.pick h4 { color: var(--success); }
+.drop { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; }
+.drop li b { font-weight: 600; }
+.drop li span { color: var(--muted); }
+.mini { width: 100%; font-size: 13px; }
+.mini td { padding: 6px 10px; }
+.mini td:first-child { white-space: nowrap; }
+
+/* Roadmap */
+.road { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; counter-reset: m; }
+.step { position: relative; display: grid; align-content: start; gap: 8px; padding: 14px 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); text-align: left; cursor: pointer; }
+.step:hover { border-color: var(--accent); }
+.step.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.step .mid { font: 600 12px/1 var(--mono); color: var(--accent-ink); }
+.step p { font-size: 13.5px; }
+.step .verify { padding-top: 8px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 12.5px; }
+
+/* Files, risks */
+.group-row td { padding: 8px 14px; background: var(--wash); color: var(--muted); font: 600 12px/1.4 var(--mono); }
+.path { font: 12.5px/1.6 var(--mono); }
+.files td:nth-child(2) { color: var(--muted); }
+
+/* Background */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cols ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; }
+.cols li + li { margin-top: 6px; }
+.cols .card.non h3 { color: var(--muted); }
+details.more { margin-top: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+details.more > summary { padding: 12px 16px; cursor: pointer; font-size: 14px; font-weight: 600; list-style: none; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: "›"; display: inline-block; width: 16px; color: var(--faint); transition: transform .18s ease; }
+details.more[open] > summary::before { transform: rotate(90deg); }
+details.more > summary small { margin-left: 8px; color: var(--faint); font-weight: 400; }
+details.more > .inner { padding: 0 16px 16px; }
+.qa { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 10px; font-size: 13.5px; }
+.qa b { font: 600 12px/1.7 var(--mono); color: var(--faint); }
+.qa p span { color: var(--muted); }
+.qa > p + b, .qa > p + b + p { margin-top: 6px; }
+
+footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12.5px; }
+.note { color: var(--faint); font-size: 12px; }
+
+@media (max-width: 1180px) {
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 0 24px; }
+  .toc { display: none; }
+  .glance { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 900px) {
+  .map { grid-template-columns: 1fr 1fr; }
+  .lane:nth-child(odd of .lane) { border-left: 0; }
+  .edges { display: none; }
+  .road { grid-template-columns: 1fr; }
+  .dec-body { grid-template-columns: 1fr; padding-left: 20px; }
+}
+@media (max-width: 640px) {
+  .layout { padding: 0 16px; }
+  .topbar { padding: 0 16px; }
+  .head h1 { font-size: 24px; }
+  .glance, .checks, .cols, .inspect { grid-template-columns: 1fr; }
+  .map { grid-template-columns: 1fr; }
+  .lane + .lane { border-left: 0; border-top: 1px dashed var(--line); }
+  .dec-row td.state, th.state { display: none; }
+  td.id { width: 64px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+figure.derived { margin: 0; }
+.context { display: grid; gap: 14px; max-width: 75ch; margin-bottom: 18px; }
+</style>
+
+<!--
+  Reference sample for writing-dev-plans visual documents (see references/visual-guide.md).
+  Borrow the palette, type, density, components, and interaction patterns; do not copy its section list.
+  Your page follows your source: every unit carries data-src, sections this sample lacks get their own design.
+-->
+<script type="application/json" id="plan-source">{}</script>
+</head>
+<body>
+<header class="topbar">
+  <span class="doc">Plan Viewer · Plan</span>
+  <span class="path">.plans/2026-11-10-plan-viewer/plan.md</span>
+  <button class="toggle" type="button" id="theme">浅色</button>
+</header>
+<div class="layout">
+  <nav class="toc" aria-label="目录">
+    <a href="#overview">概要</a><a href="#architecture">架构</a><a href="#decisions">决策</a><a href="#roadmap">路线</a><a href="#files">文件</a><a href="#risks">风险</a><a href="#background">背景</a>
+  </nav>
+  <main id="doc">
+  <header class="head" data-src="header">
+    <h1>Plan Viewer · Plan</h1>
+    <div class="meta"><span class="badge ok">aligned</span><span>2026-11-10</span><span>实现：<code>./impl.md</code></span></div>
+    <div class="facts"><span><b>10</b>决策</span><span><b>14</b>组件</span><span><b>17</b>文件</span><span><b>5</b>里程碑</span><span><b>8</b>风险</span><span><b>9/9</b>问题已决</span></div>
+  </header>
+
+  <section class="doc-section" id="overview">
+    <h2>概要</h2>
+    <div class="glance" data-src="sec:at-a-glance"><article class="card"><h3>三个组件</h3><p>固定的 <code>index.html</code>（全部方案列表）、固定的 <code>project.html</code>（单个方案的 app shell：结构化的方案、实现、进度）、agent 按方案生成的 <code>visual-plan.html</code> / <code>visual-impl.html</code></p><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button></div></article><article class="card"><h3>向后兼容</h3><p>固定页面宽容解析，认不出的块或整篇显示原文 md，不报错</p><div class="chips"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button></div></article><article class="card"><h3>可视化文档保真</h3><p>可以重组、突出、画图，但不能丢信息；用 <code>data-src</code> 标记 + 脚本检查覆盖率</p><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button><button class="chip" type="button" data-adr="ADR-7">ADR-7</button></div></article><article class="card"><h3>过时由脚本判定</h3><p>HTML 内嵌 md 的 <code>version_hash</code> 与逐单元哈希；<code>visual-status.mjs</code> 报告哪些单元变了，gate 前必须同步到 fresh</p><div class="chips"><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></article><article class="card"><h3>两个询问点</h3><p><code>plan.md</code> 首稿完成后问是否生成 visual（同意则 visual-impl 在 impl 首稿时自动生成）；执行开始前问是否打开进度页</p><div class="chips"><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></div></article><article class="card is-weak"><h3>最弱环节</h3><p>哈希只能证明"覆盖了、且基于最新 md 盖章"，不能证明改写忠实；措辞忠实度仍要人看</p></article></div>
+    <div class="checks">
+      <article class="card" data-src="header"><h3>成功检查</h3><ol style="margin-top:10px"><li>浏览器打开 <code>/</code> 列出 <code>.plans/</code> 下全部方案</li><li><code>/p/&lt;dir&gt;</code> 显示该方案的 Plan / Impl / Progress，改 <code>impl.md</code> 或新增 <code>runs/T1-1/handoff.md</code> 后 ≤1s 自动刷新；旧格式或无法解析的部分显示原文</li><li>subagent 按指南生成 <code>visual-plan.html</code>，<code>visual-status.mjs --stamp</code> 通过保真检查并写入哈希，在 Visual 标签页和 <code>file://</code> 都能正常显示</li><li>修改 <code>plan.md</code> 中一个 ADR 后，<code>visual-status.mjs</code> 报告 stale 并列出该 ADR、退出码 1，shell 显示"已过时"；只改任务状态或追加日志时仍为 fresh</li></ol></article>
+      <article class="card" data-src="sec:constraints"><h3>约束</h3><ul class="constraints" style="margin-top:10px"><li>零 npm 依赖、无构建步骤：<code>scripts/</code> 下是手写的 ESM <code>.mjs</code>，只用 Node 标准库；前端库走 CDN（jsDelivr，锁大版本，URL 已验证可访问） <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-10">ADR-10</button></span></li><li>Node ≥ 20（<code>fs.watch</code> recursive 在 Linux 需 20+；本机 v22.23.2）；lint 因此也依赖 Node</li><li>只读：server 不写任何文件（<code>.viewer.json</code> 除外），只绑定 127.0.0.1 <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></span></li><li>md 是唯一事实来源；visual 文档是派生物，与 md 冲突时以 md 为准</li><li>解析只锚定 Fixed 追踪标记，不依赖可被翻译的章节标题 <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button></span></li></ul></article>
+    </div>
+  </section>
+
+  <section class="doc-section" id="architecture" data-src="sec:architecture">
+    <h2>架构 <small>点击组件查看相关决策、文件与里程碑</small></h2>
+    <div class="map-wrap">
+      <div class="map-bar">
+        <span class="legend"><svg viewBox="0 0 26 8"><path d="M0 4H26" stroke="currentColor" stroke-width="1.3"></path></svg>数据流</span>
+        <span class="legend"><svg viewBox="0 0 26 8"><path d="M0 4H26" stroke="currentColor" stroke-width="1.3" stroke-dasharray="4 4"></path></svg>共享模块</span>
+        <span class="note">组件与决策的关系由方案文本整理</span>
+        <button class="reset" type="button" id="reset" hidden="">清除选择</button>
+      </div>
+      <div class="map" id="map">
+        <svg class="edges" id="edges" aria-hidden="true"><defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0L8 4L0 8z"></path></marker><marker id="ah-on" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow arrow-head" d="M0 0L8 4L0 8z"></path></marker></defs><g data-from="agent" data-to="plans-dir" data-label="写入"></g><g data-from="parser" data-to="lint" data-dashed=""></g><g data-from="parser" data-to="visual-status" data-dashed=""></g><g data-from="parser" data-to="server" data-dashed=""></g><g data-from="plans-dir" data-to="visual-status"></g><g data-from="plans-dir" data-to="lint"></g><g data-from="plans-dir" data-to="server" data-label="fs.watch + 防抖"></g><g data-from="server" data-to="index"></g><g data-from="server" data-to="project"></g><g data-from="project" data-to="visual-doc" data-label="iframe"></g></svg>
+        <div class="lane"><div class="lane-title">agent · .plans</div><button class="node" type="button" data-comp="agent"><b>Agent</b><span>写 plan.md / impl.md；subagent 写 runs/Tn-k/；subagent 生成 visual-*.html（模板 + 指南）</span></button><button class="node" type="button" data-comp="plans-dir"><b>.plans/date-slug/</b><span>方案目录：plan.md、impl.md、runs/、visual-*.html</span></button></div><div class="lane"><div class="lane-title">lib · cli</div><button class="node" type="button" data-comp="parser"><b>lib/parse-plan.mjs</b><span>宽容解析，返回 {format, blocks}，从不抛错</span></button><button class="node" type="button" data-comp="lint"><b>lint-plan.mjs</b><span>md 格式检查，规则按 format 生效</span></button><button class="node" type="button" data-comp="visual-status"><b>visual-status.mjs</b><span>保真 · 过时 · --stamp</span></button><button class="node" type="button" data-comp="hash"><b>lib/source-hash.mjs</b><span>规范化 md，计算 version_hash 与逐单元哈希</span></button></div><div class="lane"><div class="lane-title">server</div><button class="node" type="button" data-comp="server"><b>plan-viewer.mjs</b><span>HTTP · SSE；一个 worktree 一个 server</span></button></div><div class="lane"><div class="lane-title">page</div><button class="node" type="button" data-comp="index"><b>index.html</b><span>全部方案</span></button><button class="node" type="button" data-comp="project"><b>project.html</b><span>Plan · Impl · Progress · Visual</span></button><button class="node" type="button" data-comp="visual-doc"><b>visual-plan.html / visual-impl.html</b><span>agent 生成，iframe 嵌入</span></button></div><div class="lane"><div class="lane-title">skill</div><button class="node" type="button" data-comp="visual-template"><b>visual-template.html</b><span>visual 文档骨架与组件</span></button><button class="node" type="button" data-comp="visual-guide"><b>visual-guide.md</b><span>生成指南：顺序、映射、保真、页脚</span></button><button class="node" type="button" data-comp="templates"><b>templates/</b><span>模板 frontmatter 与 At a Glance</span></button><button class="node" type="button" data-comp="skill-md"><b>SKILL.md · viewer.md</b><span>询问流程、lint 自检、gate 前重新生成 visual</span></button></div>
+      </div>
+      <div class="inspect is-empty" data-inspect="">未选择组件。</div>
+<div class="inspect" data-inspect="comp:agent" hidden=""><div><h3>Agent</h3><p class="role">写 plan.md / impl.md；subagent 写 runs/Tn-k/；subagent 生成 visual-*.html（模板 + 指南）</p><dl class="kv"><dt>文件</dt><dd>—</dd><dt>里程碑</dt><dd>—</dd><dt>风险</dt><dd><ul><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-6"><b>ADR-6</b><span>visual 文档 = 模板 + 组件库 + 生成指南<span>模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</span></span></button><button class="adr-link" type="button" data-adr="ADR-9"><b>ADR-9</b><span>询问流程<span>两个询问点：<code>plan.md</code> 首稿后问是否生成 visual；执行开始前问是否打开进度页</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:plans-dir" hidden=""><div><h3>.plans/date-slug/</h3><p class="role">方案目录：plan.md、impl.md、runs/、visual-*.html</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>.plans/&lt;dir&gt;/</code></li></ul></dd><dt>里程碑</dt><dd>—</dd><dt>风险</dt><dd>—</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-1"><b>ADR-1</b><span>三组件划分，固定页面读 md，visual 文档由 agent 生成<span>固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:parser" hidden=""><div><h3>lib/parse-plan.mjs</h3><p class="role">宽容解析，返回 {format, blocks}，从不抛错</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/lib/parse-plan.mjs</code></li></ul></dd><dt>里程碑</dt><dd><b>M1</b> · format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</dd><dt>风险</dt><dd><ul><li>改了 Fixed 却忘了 bump format</li><li>环境没有 Node</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-2"><b>ADR-2</b><span>固定页面宽容解析，按块降级显示原文<span>解析模块从不抛错，认不出的块显示原文；整篇识别失败时整篇显示原文</span></span></button><button class="adr-link" type="button" data-adr="ADR-3"><b>ADR-3</b><span>lint 只查一个方案，规则按格式版本生效<span><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</span></span></button><button class="adr-link" type="button" data-adr="ADR-10"><b>ADR-10</b><span>手写 ESM，不引入 npm 包与构建<span><code>scripts/*.mjs</code> 直接手写为最终产物，不设 <code>packages/</code>、不打包</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:hash" hidden=""><div><h3>lib/source-hash.mjs</h3><p class="role">规范化 md，计算 version_hash 与逐单元哈希</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/lib/source-hash.mjs</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>visual 文档过时</li><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-8"><b>ADR-8</b><span>version_hash + 脚本判定过时，gate 前强制同步<span><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:lint" hidden=""><div><h3>lint-plan.mjs</h3><p class="role">md 格式检查，规则按 format 生效</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/lint-plan.mjs</code></li></ul></dd><dt>里程碑</dt><dd><b>M1</b> · format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</dd><dt>风险</dt><dd><ul><li>改了 Fixed 却忘了 bump format</li><li>环境没有 Node</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-3"><b>ADR-3</b><span>lint 只查一个方案，规则按格式版本生效<span><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:visual-status" hidden=""><div><h3>visual-status.mjs</h3><p class="role">保真 · 过时 · --stamp</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/visual-status.mjs</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>visual 文档漏掉约束或风险，用户据此确认</li><li>visual 文档过时</li><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-7"><b>ADR-7</b><span>保真检查脚本<span><code>visual-status.mjs</code> 比对 md 单元与 <code>data-src</code>：缺失 → error</span></span></button><button class="adr-link" type="button" data-adr="ADR-8"><b>ADR-8</b><span>version_hash + 脚本判定过时，gate 前强制同步<span><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:server" hidden=""><div><h3>plan-viewer.mjs</h3><p class="role">HTTP · SSE；一个 worktree 一个 server</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/plan-viewer.mjs</code></li><li><code>.plans/.viewer.json</code></li></ul></dd><dt>里程碑</dt><dd><b>M2</b> · 旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</dd><dt>风险</dt><dd><ul><li>宿主回收后台进程</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-4"><b>ADR-4</b><span>一个 worktree 一个 server，SSE 推送<span>一个 <code>.plans/</code> 一个 server，按 <code>.viewer.json</code> 复用；SSE 推送，200ms 防抖</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:index" hidden=""><div><h3>index.html</h3><p class="role">全部方案</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>assets/index.html</code></li></ul></dd><dt>里程碑</dt><dd><b>M2</b> · 旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</dd><dt>风险</dt><dd><ul><li>md 或 visual 中的 HTML 注入</li><li>CDN 不可用</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-1"><b>ADR-1</b><span>三组件划分，固定页面读 md，visual 文档由 agent 生成<span>固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</span></span></button><button class="adr-link" type="button" data-adr="ADR-5"><b>ADR-5</b><span>固定页面的版式与图表<span>手写亮色/暗色 CSS 变量，同时供页面、mermaid、Cytoscape 使用</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:project" hidden=""><div><h3>project.html</h3><p class="role">Plan · Impl · Progress · Visual</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>assets/project.html</code></li></ul></dd><dt>里程碑</dt><dd><b>M2</b> · 旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</dd><dt>风险</dt><dd><ul><li>visual 文档过时</li><li>生成 visual 消耗大量 token</li><li>md 或 visual 中的 HTML 注入</li><li>CDN 不可用</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-1"><b>ADR-1</b><span>三组件划分，固定页面读 md，visual 文档由 agent 生成<span>固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</span></span></button><button class="adr-link" type="button" data-adr="ADR-2"><b>ADR-2</b><span>固定页面宽容解析，按块降级显示原文<span>解析模块从不抛错，认不出的块显示原文；整篇识别失败时整篇显示原文</span></span></button><button class="adr-link" type="button" data-adr="ADR-5"><b>ADR-5</b><span>固定页面的版式与图表<span>手写亮色/暗色 CSS 变量，同时供页面、mermaid、Cytoscape 使用</span></span></button><button class="adr-link" type="button" data-adr="ADR-8"><b>ADR-8</b><span>version_hash + 脚本判定过时，gate 前强制同步<span><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:visual-doc" hidden=""><div><h3>visual-plan.html / visual-impl.html</h3><p class="role">agent 生成，iframe 嵌入</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>.plans/&lt;dir&gt;/visual-plan.html</code></li><li><code>.plans/&lt;dir&gt;/visual-impl.html</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-1"><b>ADR-1</b><span>三组件划分，固定页面读 md，visual 文档由 agent 生成<span>固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</span></span></button><button class="adr-link" type="button" data-adr="ADR-6"><b>ADR-6</b><span>visual 文档 = 模板 + 组件库 + 生成指南<span>模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:visual-template" hidden=""><div><h3>visual-template.html</h3><p class="role">visual 文档骨架与组件</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>assets/visual-template.html</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-6"><b>ADR-6</b><span>visual 文档 = 模板 + 组件库 + 生成指南<span>模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:visual-guide" hidden=""><div><h3>visual-guide.md</h3><p class="role">生成指南：顺序、映射、保真、页脚</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>references/visual-guide.md</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-6"><b>ADR-6</b><span>visual 文档 = 模板 + 组件库 + 生成指南<span>模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:templates" hidden=""><div><h3>templates/</h3><p class="role">模板 frontmatter 与 At a Glance</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>templates/plan.md</code></li><li><code>templates/impl.md</code></li></ul></dd><dt>里程碑</dt><dd><b>M1</b> · format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</dd><dt>风险</dt><dd><ul><li>改了 Fixed 却忘了 bump format</li><li>环境没有 Node</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-3"><b>ADR-3</b><span>lint 只查一个方案，规则按格式版本生效<span><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</span></span></button></div></div></div>
+<div class="inspect" data-inspect="comp:skill-md" hidden=""><div><h3>SKILL.md · viewer.md</h3><p class="role">询问流程、lint 自检、gate 前重新生成 visual</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>SKILL.md</code></li><li><code>references/viewer.md</code></li></ul></dd><dt>里程碑</dt><dd><b>M5</b> · 端到端走一遍 gate</dd><dt>风险</dt><dd><ul><li>visual 文档过时</li><li>改了 Fixed 却忘了 bump format</li><li>生成 visual 消耗大量 token</li><li>环境没有 Node</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-3"><b>ADR-3</b><span>lint 只查一个方案，规则按格式版本生效<span><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</span></span></button><button class="adr-link" type="button" data-adr="ADR-8"><b>ADR-8</b><span>version_hash + 脚本判定过时，gate 前强制同步<span><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</span></span></button><button class="adr-link" type="button" data-adr="ADR-9"><b>ADR-9</b><span>询问流程<span>两个询问点：<code>plan.md</code> 首稿后问是否生成 visual；执行开始前问是否打开进度页</span></span></button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-1" hidden=""><div><h3>ADR-1 · 三组件划分，固定页面读 md，visual 文档由 agent 生成</h3><p class="role">固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="index">index.html</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button><button class="chip is-on" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button><button class="chip is-on" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-2" hidden=""><div><h3>ADR-2 · 固定页面宽容解析，按块降级显示原文</h3><p class="role">解析模块从不抛错，认不出的块显示原文；整篇识别失败时整篇显示原文</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-3" hidden=""><div><h3>ADR-3 · lint 只查一个方案，规则按格式版本生效</h3><p class="role"><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="templates">templates/</button><button class="chip is-on" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-4" hidden=""><div><h3>ADR-4 · 一个 worktree 一个 server，SSE 推送</h3><p class="role">一个 <code>.plans/</code> 一个 server，按 <code>.viewer.json</code> 复用；SSE 推送，200ms 防抖</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-5" hidden=""><div><h3>ADR-5 · 固定页面的版式与图表</h3><p class="role">手写亮色/暗色 CSS 变量，同时供页面、mermaid、Cytoscape 使用</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="index">index.html</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-6" hidden=""><div><h3>ADR-6 · visual 文档 = 模板 + 组件库 + 生成指南</h3><p class="role">模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="visual-template">visual-template.html</button><button class="chip is-on" type="button" data-comp-chip="visual-guide">visual-guide.md</button><button class="chip is-on" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-7" hidden=""><div><h3>ADR-7 · 保真检查脚本</h3><p class="role"><code>visual-status.mjs</code> 比对 md 单元与 <code>data-src</code>：缺失 → error</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="visual-status">visual-status.mjs</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-8" hidden=""><div><h3>ADR-8 · version_hash + 脚本判定过时，gate 前强制同步</h3><p class="role"><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip is-on" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-9" hidden=""><div><h3>ADR-9 · 询问流程</h3><p class="role">两个询问点：<code>plan.md</code> 首稿后问是否生成 visual；执行开始前问是否打开进度页</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div></div>
+<div class="inspect" data-inspect="adr:ADR-10" hidden=""><div><h3>ADR-10 · 手写 ESM，不引入 npm 包与构建</h3><p class="role"><code>scripts/*.mjs</code> 直接手写为最终产物，不设 <code>packages/</code>、不打包</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip is-on" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip is-on" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div></div>
+<div class="inspect" data-inspect="ms:M1" hidden=""><div><h3>M1</h3><p class="role">解析器（结构化块 + raw 降级）+ lint（since 规则）+ 模板 frontmatter + fixture</p><dl class="kv"><dt>验证</dt><dd>format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="templates">templates/</button></div></div></div>
+<div class="inspect" data-inspect="ms:M2" hidden=""><div><h3>M2</h3><p class="role">server + <code>index.html</code> + <code>project.html</code> 的 Plan / Impl 标签页</p><dl class="kv"><dt>验证</dt><dd>旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="server">plan-viewer.mjs</button><button class="chip is-on" type="button" data-comp-chip="index">index.html</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
+<div class="inspect" data-inspect="ms:M3" hidden=""><div><h3>M3</h3><p class="role">Progress 标签页</p><dl class="kv"><dt>验证</dt><dd>inline 与 subagent fixture 各一，run 卡片与依赖图正确</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
+<div class="inspect" data-inspect="ms:M4" hidden=""><div><h3>M4</h3><p class="role"><code>visual-template.html</code> + <code>visual-guide.md</code> + <code>visual-status.mjs</code>（保真、过时、<code>--stamp</code>）</p><dl class="kv"><dt>验证</dt><dd>用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="visual-template">visual-template.html</button><button class="chip is-on" type="button" data-comp-chip="visual-guide">visual-guide.md</button><button class="chip is-on" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip is-on" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip is-on" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button></div></div></div>
+<div class="inspect" data-inspect="ms:M5" hidden=""><div><h3>M5</h3><p class="role">接入 skill：模板 At a Glance 与 frontmatter、<code>SKILL.md</code>（询问流程、lint 自检、gate 前重新生成 visual）、<code>references/viewer.md</code></p><dl class="kv"><dt>验证</dt><dd>端到端走一遍 gate</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="templates">templates/</button><button class="chip is-on" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div></div>
+    </div>
+  </section>
+
+  <section class="doc-section" id="decisions" data-src="sec:decisions">
+    <h2>决策 <small>10 条，全部 accepted；点击一行展开</small></h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>决策</th><th>放弃</th><th class="state">状态</th></tr></thead>
+      <tbody>
+        <tr class="dec-row" id="ADR-1" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-1" data-row="ADR-1" data-src="ADR-1" data-comps="index project visual-doc server">
+          <td class="id"><span class="caret">›</span>ADR-1</td>
+          <td><div class="title">三组件划分，固定页面读 md，visual 文档由 agent 生成</div><div class="sum">固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</div></td>
+          <td><ul class="rej" style="padding:0"><li>只有通用 viewer</li><li>只有 agent 生成 HTML</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-1" hidden="" data-src="ADR-1"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>进度变化频繁，只能实时读 md；方案阅读需要定制化表现力，固定渲染器给不了</p></div>
+          <div class="pick"><h4>选择</h4><p>固定页面（<code>index.html</code>、<code>project.html</code>）读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 按 <code>visual-guide.md</code> 生成，放在方案目录，Visual 标签页用 iframe 嵌入</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>只有通用 viewer</b><span> — 版式固定，表现力不够</span></li><li><b>只有 agent 生成 HTML</b><span> — 进度做不到实时，每次改动都要重生成</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>进度永远实时</li><li>方案阅读体验可以按方案定制</li><li>visual 文档有过时问题（ADR-8）</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="index">index.html</button><button class="chip" type="button" data-comp-chip="project">project.html</button><button class="chip" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button><button class="chip" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div>
+          
+          
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-2" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-2" data-row="ADR-2" data-src="ADR-2" data-comps="parser project">
+          <td class="id"><span class="caret">›</span>ADR-2</td>
+          <td><div class="title">固定页面宽容解析，按块降级显示原文</div><div class="sum">解析模块从不抛错，认不出的块显示原文；整篇识别失败时整篇显示原文</div></td>
+          <td><ul class="rej" style="padding:0"><li>遇到未知格式报错</li><li>按格式版本分别写渲染器</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-2" hidden="" data-src="ADR-2"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>仓库里会有各个历史版本的方案，未来格式还会演进</p></div>
+          <div class="pick"><h4>选择</h4><p>共享解析模块从不抛错，返回 <code>{format, blocks}</code>：识别出的为结构化块，其余为 raw 块按原文顺序保留；整篇识别失败时整篇显示原文并提示"无法解析，显示原文"；Progress 页只在任务可解析时出现</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>遇到未知格式报错</b><span> — 违背向后兼容</span></li><li><b>按格式版本分别写渲染器</b><span> — 维护成本随版本数增长</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>任何版本的方案都能打开，最差也是渲染好的原文</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip" type="button" data-comp-chip="project">project.html</button></div></div>
+          
+          
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-3" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-3" data-row="ADR-3" data-src="ADR-3" data-comps="lint parser templates skill-md">
+          <td class="id"><span class="caret">›</span>ADR-3</td>
+          <td><div class="title">lint 只查一个方案，规则按格式版本生效</div><div class="sum"><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</div></td>
+          <td><ul class="rej" style="padding:0"><li>扫描整个 <code>.plans/</code></li><li>header 字段记版本</li><li>HTML 注释记版本</li><li>用 skill 版本号</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-3" hidden="" data-src="ADR-3"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>固定页面依赖格式；用户不用 HTML 时，进度追踪和新会话恢复同样依赖格式；旧方案不能被新规则卡住</p></div>
+          <div class="pick"><h4>选择</h4><p><code>lint-plan.mjs &lt;plan-dir&gt; [--as &lt;N&gt;]</code> 只查一个方案，有 error 退出码 1；模板首行 frontmatter <code>format: 2</code>，无 frontmatter 视为 format 1；每条规则标 <code>since</code>，只对 format ≥ since 的文件生效；Self-Review 第一步跑 lint，error 清零才过 gate</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>扫描整个 <code>.plans/</code></b><span> — 旧方案会被新规则卡住</span></li><li><b>header 字段记版本</b><span> — 混在给人看的头部</span></li><li><b>HTML 注释记版本</b><span> — 易被当模板说明删除</span></li><li><b>用 skill 版本号</b><span> — 文字改动也会触发版本变化</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>格式可执行，新旧方案共存</li><li>skill 首次依赖 Node（无 Node 时跳过并提示，退回手工 grep 自检）</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip" type="button" data-comp-chip="templates">templates/</button><button class="chip" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div>
+          <div class="full"><h4>细则</h4><ul><li>since 1：Status 值、任务标题格式与状态、任务 ID 唯一、<code>Depends on</code> / <code>Verify</code> 必填、依赖存在且无环、ADR 编号与 Status、日志 kind 与任务引用、代码块外无 <code>{{</code>、<code>runs/</code> 文件夹名与 handoff Status、状态一致性</li><li>since 2：frontmatter 合法、impl 有 <code>Execution</code>、plan 有 <code>## At a Glance</code></li><li>warn：TBD/TODO；aligned 后仍有未勾选问题；subagent 模式下 <code>[doing]</code> 任务无 run 文件夹；有 handoff 但 impl 未记日志</li><li><code>--as &lt;N&gt;</code>：按 format N 检查旧方案，列出升级需要补的内容</li><li>跨文件规则取两者较小值；文件 format 高于已安装 skill 时只 warn</li><li>执行中每次更新 <code>impl.md</code> 后跑一次；shell 打开某个方案时顶部显示其 lint 结果</li></ul></div>
+          
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-4" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-4" data-row="ADR-4" data-src="ADR-4" data-comps="server">
+          <td class="id"><span class="caret">›</span>ADR-4</td>
+          <td><div class="title">一个 worktree 一个 server，SSE 推送</div><div class="sum">一个 <code>.plans/</code> 一个 server，按 <code>.viewer.json</code> 复用；SSE 推送，200ms 防抖</div></td>
+          <td><ul class="rej" style="padding:0"><li>每个方案一个 server</li><li>WebSocket</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-4" hidden="" data-src="ADR-4"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>同一仓库可能同时推进多个方案，多个会话各跑一个</p></div>
+          <div class="pick"><h4>选择</h4><p><code>plan-viewer.mjs</code> 作用域为一个 <code>.plans/</code>；<code>/health</code> 校验 <code>.viewer.json</code> 的 root 一致则复用，否则新起；<code>/events</code> SSE 带 <code>dir</code>、200ms 防抖；无连接且无请求 2h 后退出</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>每个方案一个 server</b><span> — 端口与进程随方案数增长</span></li><li><b>WebSocket</b><span> — 只需单向推送</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>多方案、多会话共用一个进程</li><li>各 worktree 互不干扰</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div>
+          
+          <div class="full"><h4>路由</h4><table class="mini"><tbody><tr><td><code>/</code></td><td>index.html</td></tr><tr><td><code>/p/&lt;dir&gt;</code></td><td>project.html</td></tr><tr><td><code>/api/plans、/api/plans/&lt;dir&gt;</code></td><td>解析后的 JSON（含 lint 结果）</td></tr><tr><td><code>/files/&lt;dir&gt;/&lt;path&gt;</code></td><td>方案目录内的静态文件（visual 文档、evidence），禁止路径越界</td></tr><tr><td><code>/events</code></td><td>SSE，事件带 dir，200ms 防抖</td></tr><tr><td><code>/health</code></td><td>校验 root</td></tr></tbody></table></div>
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-5" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-5" data-row="ADR-5" data-src="ADR-5" data-comps="index project">
+          <td class="id"><span class="caret">›</span>ADR-5</td>
+          <td><div class="title">固定页面的版式与图表</div><div class="sum">手写亮色/暗色 CSS 变量，同时供页面、mermaid、Cytoscape 使用</div></td>
+          <td><ul class="rej" style="padding:0"><li>Tailwind Play CDN</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-5" hidden="" data-src="ADR-5"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>固定页面需要好看且统一，图表库需要具体色值</p></div>
+          <div class="pick"><h4>选择</h4><p>手写亮色/暗色 CSS 变量，同时供页面、mermaid themeVariables、Cytoscape 使用；库：marked、DOMPurify、mermaid@11 + layout-elk、cytoscape + cytoscape-dagre、highlight.js、lucide</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>Tailwind Play CDN</b><span> — 运行时编译、官方不建议生产使用，且无法供图表库使用</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>全站视觉统一</li><li>CDN 不可用时图表显示源码</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="index">index.html</button><button class="chip" type="button" data-comp-chip="project">project.html</button></div></div>
+          <div class="full"><h4>细则</h4><ul><li>index：每个方案一张卡片，显示标题、日期、Status、Execution、任务完成数、needs-user / blocked / 运行中提示、format 标签、是否有 visual 文档</li><li>Plan / Impl 标签页：At a Glance 置顶，ADR 卡片（选中、放弃、理由），mermaid 使用 <code>look: neo</code> + ELK，其余 raw 块按原文渲染</li><li>Progress 标签页：needs-user / blocked 置顶、状态统计、milestone 进度条、Cytoscape 任务依赖图（按状态着色，点击看任务详情）、run 卡片、日志时间线</li><li>Visual 标签页：有 visual 文档时以 iframe 嵌入并显示是否过时（ADR-8），没有时提示可让 agent 生成</li></ul></div>
+          
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-6" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-6" data-row="ADR-6" data-src="ADR-6" data-comps="visual-template visual-guide visual-doc">
+          <td class="id"><span class="caret">›</span>ADR-6</td>
+          <td><div class="title">visual 文档 = 模板 + 组件库 + 生成指南</div><div class="sum">模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</div></td>
+          <td><ul class="rej" style="padding:0"><li>agent 自由发挥</li><li>server 包装内容片段（brainstorming 的做法）</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-6" hidden="" data-src="ADR-6"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>每次让 agent 从零写 HTML，风格不一、样式代码重复、容易漏信息</p></div>
+          <div class="pick"><h4>选择</h4><p><code>visual-template.html</code> 提供骨架、CSS 变量、CDN 库与组件 class；agent 复制到 <code>.plans/&lt;dir&gt;/visual-plan.html</code>，只填写 <code>&lt;main&gt;</code>；<code>visual-guide.md</code> 规定顺序、映射、保真（<code>data-src</code>）与页脚；由 subagent 生成，内容只来自对应 md，不写哈希</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>agent 自由发挥</b><span> — 风格漂移、重复 CSS</span></li><li><b>server 包装内容片段（brainstorming 的做法）</b><span> — 离开 server 就无法查看</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>风格统一，agent 只写内容</li><li>新增组件需要同时更新模板与指南</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="visual-template">visual-template.html</button><button class="chip" type="button" data-comp-chip="visual-guide">visual-guide.md</button><button class="chip" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button></div></div>
+          
+          
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-7" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-7" data-row="ADR-7" data-src="ADR-7" data-comps="visual-status">
+          <td class="id"><span class="caret">›</span>ADR-7</td>
+          <td><div class="title">保真检查脚本</div><div class="sum"><code>visual-status.mjs</code> 比对 md 单元与 <code>data-src</code>：缺失 → error</div></td>
+          <td><ul class="rej" style="padding:0"><li>让另一个 LLM 比对</li><li>只靠指南约束</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-7" hidden="" data-src="ADR-7"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>"尽可能保留原信息"必须能被验证，不能只靠 agent 自律</p></div>
+          <div class="pick"><h4>选择</h4><p>并入 <code>visual-status.mjs</code>：从 md 提取单元清单，与 visual 文档的 <code>data-src</code> 比对；缺失 → error，md 中不存在的 <code>data-src</code> → warn；lint 只管 md 格式，不碰 visual</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>让另一个 LLM 比对</b><span> — 慢且不确定</span></li><li><b>只靠指南约束</b><span> — 已知 LLM 会压缩内容</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>漏章节、漏 ADR、漏任务会被机器发现</li><li>措辞是否忠实仍需人看</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="visual-status">visual-status.mjs</button></div></div>
+          
+          
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-8" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-8" data-row="ADR-8" data-src="ADR-8" data-comps="hash visual-status project">
+          <td class="id"><span class="caret">›</span>ADR-8</td>
+          <td><div class="title">version_hash + 脚本判定过时，gate 前强制同步</div><div class="sum"><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</div></td>
+          <td><ul class="rej" style="padding:0"><li>只比整篇哈希</li><li>用文件修改时间</li><li>让 agent 自己记得同步</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-8" hidden="" data-src="ADR-8"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>md 在 interview、修订、Changing Course 中持续变化；用户要求用哈希与脚本判定 md 与 HTML 是否一致</p></div>
+          <div class="pick"><h4>选择</h4><p><code>source-hash.mjs</code> 规范化 md 并剔除追踪噪声，得到 <code>version_hash</code> 与逐单元哈希；visual 内嵌清单 <code>plan-source</code>；<code>visual-status.mjs</code> 输出 fresh / stale / unstamped 并列出变化单元，<code>--stamp</code> 通过保真检查才写入；gate 前、Changing Course 后、新会话恢复时运行，退出码 1 → 只同步列出的单元</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>只比整篇哈希</b><span> — 无法增量同步，每次都要全量重写</span></li><li><b>用文件修改时间</b><span> — 编辑器保存、git checkout 都会改动</span></li><li><b>让 agent 自己记得同步</b><span> — 正是要解决的问题</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>过时判定确定、可脚本化</li><li>增量同步只改变化单元，省 token</li><li>执行期 visual-impl 不会因进度更新而误报过时</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip" type="button" data-comp-chip="project">project.html</button></div></div>
+          <div class="full"><h4>细则</h4><ul><li>剔除的追踪噪声：header <code>Status</code> 行、任务标题末尾的 <code>[status]</code>、步骤勾选状态、Progress log 条目</li><li>清单：<code>{source, format, version_hash, units, stamped_at}</code></li><li>哈希只由脚本写入，agent 与 subagent 不手写</li><li>执行期间任务状态与日志变化不会触发</li></ul></div>
+          
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-9" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-9" data-row="ADR-9" data-src="ADR-9" data-comps="skill-md">
+          <td class="id"><span class="caret">›</span>ADR-9</td>
+          <td><div class="title">询问流程</div><div class="sum">两个询问点：<code>plan.md</code> 首稿后问是否生成 visual；执行开始前问是否打开进度页</div></td>
+          <td><ul class="rej" style="padding:0"><li>每个 gate 都问</li><li>impl 首稿单独再问</li><li>默认生成</li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-9" hidden="" data-src="ADR-9"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>HTML 不强制；用户要求只在 <code>plan.md</code> 首稿完成后询问，执行开始前再询问一次</p></div>
+          <div class="pick"><h4>选择</h4><p>两个询问点：<code>plan.md</code> 首稿首次呈现时问"生成可视化 HTML 并在浏览器查看？"（同意后 impl 首稿时自动生成 visual-impl）；执行开始前问"打开进度页？"；每个询问点只问一次</p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b>每个 gate 都问</b><span> — 打扰</span></li><li><b>impl 首稿单独再问</b><span> — 用户要求只在 plan 首稿问</span></li><li><b>默认生成</b><span> — 违背"不强制"</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>最多问两次，分别对应阅读方案与跟踪进度两个场景</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div>
+          <div class="full"><h4>细则</h4><ul><li>走对话捷径没有 <code>plan.md</code> 时，这个询问移到 <code>impl.md</code> 首稿</li><li>拒绝后本会话不再问；用户随时可以要求"打开 viewer"或"生成 visual"</li><li>visual-impl 是批准时实现方案的快照，不含进度（Q6）</li></ul></div>
+          
+          
+        </div></td></tr>
+        <tr class="dec-row" id="ADR-10" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-10" data-row="ADR-10" data-src="ADR-10" data-comps="parser hash lint visual-status server">
+          <td class="id"><span class="caret">›</span>ADR-10</td>
+          <td><div class="title">手写 ESM，不引入 npm 包与构建</div><div class="sum"><code>scripts/*.mjs</code> 直接手写为最终产物，不设 <code>packages/</code>、不打包</div></td>
+          <td><ul class="rej" style="padding:0"><li><code>packages/</code> + npm + 打包成 <code>.mjs</code></li></ul></td>
+          <td class="state"><span class="badge ok">accepted</span></td>
+        </tr>
+        <tr class="dec-detail" id="d-ADR-10" hidden="" data-src="ADR-10"><td colspan="4"><div class="dec-body">
+          <div class="full"><h4>背景</h4><p>脚本约 1500 行 Node 加约 1200 行前端；Node 端所需能力标准库全有；前端库已定为 CDN；skill 以目录形式分发，安装时不会跑 <code>npm install</code></p></div>
+          <div class="pick"><h4>选择</h4><p><code>scripts/*.mjs</code> 与 <code>scripts/lib/*.mjs</code> 直接手写为最终产物，不设 <code>packages/</code>、不打包；测试用 <code>node --test</code>；类型用 JSDoc + <code>// @ts-check</code></p></div>
+          <div class="drop"><h4>放弃</h4><ul><li><b><code>packages/</code> + npm + 打包成 <code>.mjs</code></b><span> — 需提交构建产物并保证与源码同步（多一道 CI 检查），当前没有需要打包的运行时依赖</span></li></ul></div>
+          <div><h4>影响</h4><ul><li>源码即发布物，无 dist 与源码不一致的问题</li><li>没有编译期类型检查</li></ul></div>
+          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div>
+          
+          
+          <div class="full"><h4>重新评估的条件</h4><p>Node 端需要第三方库（完整 markdown AST、YAML 解析）、需要离线内置前端库、或代码量超过约 5000 行需要 TypeScript</p></div>
+        </div></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="doc-section" id="roadmap" data-src="sec:roadmap">
+    <h2>路线 <small>点击里程碑在架构图中高亮</small></h2>
+    <div class="road"><button class="step" type="button" data-ms="M1" data-comps="parser lint templates"><span class="mid">M1</span><p>解析器（结构化块 + raw 降级）+ lint（since 规则）+ 模板 frontmatter + fixture</p><span class="verify">format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</span></button><button class="step" type="button" data-ms="M2" data-comps="server index project"><span class="mid">M2</span><p>server + <code>index.html</code> + <code>project.html</code> 的 Plan / Impl 标签页</p><span class="verify">旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</span></button><button class="step" type="button" data-ms="M3" data-comps="project"><span class="mid">M3</span><p>Progress 标签页</p><span class="verify">inline 与 subagent fixture 各一，run 卡片与依赖图正确</span></button><button class="step" type="button" data-ms="M4" data-comps="visual-template visual-guide visual-status hash visual-doc"><span class="mid">M4</span><p><code>visual-template.html</code> + <code>visual-guide.md</code> + <code>visual-status.mjs</code>（保真、过时、<code>--stamp</code>）</p><span class="verify">用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</span></button><button class="step" type="button" data-ms="M5" data-comps="templates skill-md"><span class="mid">M5</span><p>接入 skill：模板 At a Glance 与 frontmatter、<code>SKILL.md</code>（询问流程、lint 自检、gate 前重新生成 visual）、<code>references/viewer.md</code></p><span class="verify">端到端走一遍 gate</span></button></div>
+  </section>
+
+  <section class="doc-section" id="files">
+    <h2>文件 <small>由组件整理；按目录分组</small></h2>
+    <figure class="derived" data-derived="sec:architecture ADR-1 ADR-2 ADR-3 ADR-4 ADR-5 ADR-6 ADR-7 ADR-8 ADR-9 ADR-10"><div class="table-wrap"><table class="files">
+      <thead><tr><th>路径</th><th>组件</th><th>里程碑</th><th>决策</th></tr></thead>
+      <tbody><tr class="group-row"><td colspan="4">.plans/</td></tr><tr><td class="path">.plans/&lt;dir&gt;/</td><td>.plans/date-slug/</td><td class="path">—</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button></div></td></tr><tr><td class="path">.plans/.viewer.json</td><td>plan-viewer.mjs</td><td class="path">M2</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></div></td></tr><tr><td class="path">.plans/&lt;dir&gt;/visual-plan.html</td><td>visual-plan.html / visual-impl.html</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></div></td></tr><tr><td class="path">.plans/&lt;dir&gt;/visual-impl.html</td><td>visual-plan.html / visual-impl.html</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></div></td></tr><tr class="group-row"><td colspan="4">scripts/lib/</td></tr><tr><td class="path">scripts/lib/parse-plan.mjs</td><td>lib/parse-plan.mjs</td><td class="path">M1</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button><button class="chip" type="button" data-adr="ADR-3">ADR-3</button><button class="chip" type="button" data-adr="ADR-10">ADR-10</button></div></td></tr><tr><td class="path">scripts/lib/source-hash.mjs</td><td>lib/source-hash.mjs</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr class="group-row"><td colspan="4">scripts/</td></tr><tr><td class="path">scripts/lint-plan.mjs</td><td>lint-plan.mjs</td><td class="path">M1</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td class="path">scripts/visual-status.mjs</td><td>visual-status.mjs</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-7">ADR-7</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td class="path">scripts/plan-viewer.mjs</td><td>plan-viewer.mjs</td><td class="path">M2</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></div></td></tr><tr class="group-row"><td colspan="4">assets/</td></tr><tr><td class="path">assets/index.html</td><td>index.html</td><td class="path">M2</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button><button class="chip" type="button" data-adr="ADR-5">ADR-5</button></div></td></tr><tr><td class="path">assets/project.html</td><td>project.html</td><td class="path">M2</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button><button class="chip" type="button" data-adr="ADR-2">ADR-2</button><button class="chip" type="button" data-adr="ADR-5">ADR-5</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td class="path">assets/visual-template.html</td><td>visual-template.html</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></div></td></tr><tr class="group-row"><td colspan="4">references/</td></tr><tr><td class="path">references/visual-guide.md</td><td>visual-guide.md</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></div></td></tr><tr><td class="path">references/viewer.md</td><td>SKILL.md · viewer.md</td><td class="path">M5</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></div></td></tr><tr class="group-row"><td colspan="4">templates/</td></tr><tr><td class="path">templates/plan.md</td><td>templates/</td><td class="path">M5</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td class="path">templates/impl.md</td><td>templates/</td><td class="path">M5</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr class="group-row"><td colspan="4">(skill 根目录)</td></tr><tr><td class="path">SKILL.md</td><td>SKILL.md · viewer.md</td><td class="path">M5</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></div></td></tr></tbody>
+    </table></div></figure>
+  </section>
+
+  <section class="doc-section" id="risks" data-src="sec:risks-pre-mortem">
+    <h2>风险 <small>pre-mortem</small></h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>风险</th><th>影响</th><th>缓解</th><th>决策</th></tr></thead>
+      <tbody><tr><td>visual 文档漏掉约束或风险，用户据此确认</td><td style="color:var(--muted)">方向确认建立在不完整信息上</td><td>ADR-7 保真检查；页脚注明以 md 为准；source 块兜底</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-7">ADR-7</button></div></td></tr><tr><td>visual 文档过时</td><td style="color:var(--muted)">用户读旧版本</td><td>ADR-8 哈希比对 + 标记</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td>改了 Fixed 却忘了 bump format</td><td style="color:var(--muted)">旧方案被新规则误伤</td><td>每个 format 各留一个合规 fixture，旧 fixture 失败即说明漏标 since</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td>生成 visual 消耗大量 token</td><td style="color:var(--muted)">会话变慢、上下文被挤占</td><td>默认派 subagent；只在 gate 前且 md 有变化时生成</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td>宿主回收后台进程</td><td style="color:var(--muted)">页面断连</td><td>提及 URL 前检查 <code>.viewer.json</code> 实例存活，必要时同端口重启；EventSource 自动重连</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></div></td></tr><tr><td>md 或 visual 中的 HTML 注入</td><td style="color:var(--muted)">本地页面 XSS</td><td>固定页面用 DOMPurify，mermaid <code>securityLevel: strict</code>；visual 用 iframe <code>sandbox="allow-scripts"</code>，不给 same-origin</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-5">ADR-5</button></div></td></tr><tr><td>CDN 不可用</td><td style="color:var(--muted)">图表不显示</td><td>降级为源码，正文可读</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-5">ADR-5</button></div></td></tr><tr><td>环境没有 Node</td><td style="color:var(--muted)">lint 与 viewer 不可用</td><td>lint 跳过并提示，退回手工自检；不提供 viewer</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="doc-section" id="background">
+    <h2>背景</h2>
+    <div class="context" data-src="sec:context"><p><code>writing-dev-plans</code> 的 <code>plan.md</code> / <code>impl.md</code> 是纯 markdown，评审时阅读疲劳；执行进度只能翻 <code>impl.md</code> 和 <code>runs/</code>。用户的拆分：</p>
+<div class="table-wrap"><table><thead><tr><th>组件</th><th>性质</th><th>作用</th></tr></thead><tbody>
+<tr><td class="path">index.html</td><td>固定，随 skill 发布</td><td>列出仓库内全部方案</td></tr>
+<tr><td class="path">project.html</td><td>固定，随 skill 发布（app shell）</td><td>单个方案的结构化视图：Plan、Impl、Progress，外加 Visual 标签页</td></tr>
+<tr><td class="path">visual-plan.html / visual-impl.html</td><td>agent 为每个方案生成，存放在 <code>.plans/&lt;dir&gt;/</code></td><td>把 md 转成可读性更高的 HTML：突出关键、尽量保留原信息、尽量用图表</td></tr>
+</tbody></table></div>
+<p>现状：追踪格式已固定（<code>SKILL.md</code> › Templates Are Skeletons 的 Fixed 列表），已发布两版模板且无版本标记（a8ad338 无 <code>Execution</code>，eed5021 新增 <code>Execution</code>）；subagent 产物在 <code>.plans/&lt;dir&gt;/runs/&lt;Tn&gt;-&lt;k&gt;/</code>。</p></div>
+    <div class="cols">
+      <article class="card" data-src="sec:goals"><h3>目标</h3><ul><li>一个页面列出全部方案；一个页面看单个方案的结构化内容和实时进度（inline 与 subagent）</li><li>固定页面兼容所有历史格式，无法解析时显示原文</li><li>agent 生成的可视化文档：关键信息置顶、信息不丢、能画图的画图</li><li>全部可选：用户不要 HTML 时，skill 流程与现在相同（只多一步 lint）</li></ul></article>
+      <article class="card non" data-src="sec:non-goals"><h3>非目标</h3><ul><li>浏览器内写回（批准、评论、选执行模式），仍在终端完成</li><li>分享、远程访问、静态站点导出</li><li>支持非本 skill 的 plan 格式</li><li>离线渲染图表（CDN 不可用时降级为源码或文本）</li><li>旧 plan 自动迁移</li><li>visual 文档随 md 每次修改实时重生成</li></ul></article>
+    </div>
+    <details class="more" data-src="sec:blindspots"><summary>盲点<small>7 条</small></summary><div class="inner"><div class="table-wrap"><table>
+      <thead><tr><th>发现</th><th>类型</th><th>为什么会出问题</th><th>落在</th></tr></thead>
+      <tbody><tr><td><code>SKILL.md</code>:21 允许把模板标题翻译成用户语言，只有追踪标记保持英文</td><td class="path">landmine</td><td style="color:var(--muted)">按 <code>## Tasks</code> 等标题定位会在中文 plan 上失效</td><td><div class="chips"><span class="chip">Constraints</span><button class="chip" type="button" data-adr="ADR-2">ADR-2</button></div></td></tr><tr><td>已发布两版模板且无版本标记</td><td class="path">history</td><td style="color:var(--muted)">新规则对旧 plan 报错，固定页面显示错乱</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td>Progress log 条目是否带 <code>- </code> 前缀从未规定</td><td class="path">convention</td><td style="color:var(--muted)">漏读或误读日志</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td>LLM 把长文档"转成更好读的版本"时会默默压缩、丢细节</td><td class="path">landmine</td><td style="color:var(--muted)">用户在 HTML 上确认了一个缺了约束或风险的方案</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button><button class="chip" type="button" data-adr="ADR-7">ADR-7</button></div></td></tr><tr><td>visual 文档生成后 md 继续被修改（interview、修订、Changing Course）</td><td class="path">missing concept</td><td style="color:var(--muted)">用户读的是旧版本却不知道</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td>macOS <code>fs.watch</code> 一次保存触发多次事件</td><td class="path">landmine</td><td style="color:var(--muted)">页面抖动、重复解析</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></div></td></tr><tr><td>部分 agent 宿主会回收后台进程（superpowers visual-companion 文档记录了 Codex 等情况）</td><td class="path">history</td><td style="color:var(--muted)">server 在下一轮对话前被杀</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button><span class="chip">Risks</span></div></td></tr></tbody>
+    </table></div></div></details>
+    <details class="more" data-src="sec:open-questions"><summary>问题<small>9/9 已决</small></summary><div class="inner"><div class="qa"><b>Q1</b><p>拒绝后执行开始时是否再提一次？ <span>— 被 Q7 取代：执行开始前单独询问进度页</span> <span class="chips" style="display:inline-flex"><span class="chip">Q7</span></span></p><b>Q2</b><p>一个仓库同时进行多个方案？ <span>— 一个 worktree 一个 server</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></span></p><b>Q3</b><p>自动打开浏览器？ <span>— 是；复用 server 时打开对应方案页</span></p><b>Q4</b><p>visual 文档由 subagent 生成？ <span>— 是</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></span></p><b>Q5</b><p>一次同意覆盖全部，还是逐步询问？ <span>— 逐步询问</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></span></p><b>Q6</b><p>visual-impl 是否包含进度？ <span>— 不包含</span></p><b>Q7</b><p>询问时机？ <span>— 只在 <code>plan.md</code> 首稿完成后询问 visual；执行开始前询问进度页</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></span></p><b>Q8</b><p>visual 生成的 subagent 参考什么？ <span>— 只参考对应 md 文件</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></span></p><b>Q9</b><p>是否需要 <code>packages/</code> + npm + 打包？ <span>— 不需要</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-10">ADR-10</button></span></p></div></div></details>
+    <details class="more" data-src="sec:assumptions"><summary>假设<small>2 条</small></summary><div class="inner"><ul style="margin:0;padding-left:18px;font-size:14px"><li>页面文案跟随方案语言；不做界面语言切换</li><li>空闲超时 2h</li></ul></div></details>
+  </section>
+
+  <footer>以 md 为准 · <code>plan.md</code></footer></main>
+</div>
+
+
+
+<script>
+// Interaction only: every piece of content is already in the DOM above. Relations live in attributes:
+// .node[data-comp], g[data-from][data-to][data-label][data-dashed], [data-comps] (ADR rows, milestones),
+// [data-inspect="kind:id"] panels, [data-adr] / [data-comp-chip] jump buttons.
+(() => {
+  const map = document.getElementById('map');
+  const svg = document.getElementById('edges');
+  const edges = [...svg.querySelectorAll('g[data-from]')];
+  const reset = document.getElementById('reset');
+  const panels = [...document.querySelectorAll('[data-inspect]')];
+  const node = id => map.querySelector('.node[data-comp="' + CSS.escape(id) + '"]');
+  const NS = 'http://www.w3.org/2000/svg';
+  let sel = null;
+
+  function draw() {
+    if (getComputedStyle(svg).display === 'none') return;
+    const box = map.getBoundingClientRect();
+    const rect = id => { const b = node(id).getBoundingClientRect(); return { l: b.left - box.left, r: b.right - box.left, t: b.top - box.top, b: b.bottom - box.top, cx: (b.left + b.right) / 2 - box.left, cy: (b.top + b.bottom) / 2 - box.top }; };
+    svg.setAttribute('viewBox', '0 0 ' + box.width + ' ' + box.height);
+    for (const g of edges) {
+      const a = rect(g.dataset.from), b = rect(g.dataset.to), same = Math.abs(a.cx - b.cx) < 20;
+      let d, x, y;
+      if (same && b.t - a.b < 40) { d = 'M' + a.cx + ' ' + a.b + 'V' + (b.t - 2); x = a.cx + 6; y = (a.b + b.t) / 2 + 4; }
+      else if (same) { const o = 16; d = 'M' + a.r + ' ' + a.cy + 'C' + (a.r + o) + ' ' + a.cy + ' ' + (b.r + o) + ' ' + b.cy + ' ' + (b.r + 2) + ' ' + b.cy; x = a.r + o + 4; y = (a.cy + b.cy) / 2; }
+      else { const mx = (a.r + b.l - 2) / 2; d = 'M' + a.r + ' ' + a.cy + 'C' + mx + ' ' + a.cy + ' ' + mx + ' ' + b.cy + ' ' + (b.l - 2) + ' ' + b.cy; x = mx; y = (a.cy + b.cy) / 2 - 6; }
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', d);
+      if (g.hasAttribute('data-dashed')) path.setAttribute('class', 'dashed');
+      g.replaceChildren(path);
+      if (g.dataset.label) {
+        const text = document.createElementNS(NS, 'text');
+        text.setAttribute('x', x); text.setAttribute('y', y); text.setAttribute('text-anchor', same ? 'start' : 'middle');
+        text.textContent = g.dataset.label;
+        g.append(text);
+      }
+    }
+    paint();
+  }
+
+  function highlighted() {
+    if (!sel) return null;
+    if (sel.kind === 'comp') {
+      const rel = new Set();
+      for (const g of edges) { if (g.dataset.from === sel.id) rel.add(g.dataset.to); if (g.dataset.to === sel.id) rel.add(g.dataset.from); }
+      return { main: new Set([sel.id]), rel };
+    }
+    const owner = sel.kind === 'adr' ? document.getElementById(sel.id) : document.querySelector('.step[data-ms="' + CSS.escape(sel.id) + '"]');
+    return { main: new Set((owner?.dataset.comps || '').split(' ').filter(Boolean)), rel: new Set() };
+  }
+
+  function paint() {
+    const h = highlighted();
+    map.classList.toggle('has-sel', !!h);
+    reset.hidden = !h;
+    for (const n of map.querySelectorAll('.node')) {
+      const id = n.dataset.comp;
+      n.classList.toggle('is-sel', !!h && h.main.has(id));
+      n.classList.toggle('is-rel', !!h && h.rel.has(id));
+      n.setAttribute('aria-pressed', String(!!h && h.main.has(id)));
+    }
+    for (const g of edges) {
+      const on = !!h && (sel.kind === 'comp' ? g.dataset.from === sel.id || g.dataset.to === sel.id : h.main.has(g.dataset.from) && h.main.has(g.dataset.to));
+      g.classList.toggle('on', on);
+      g.querySelector('path')?.setAttribute('marker-end', on ? 'url(#ah-on)' : 'url(#ah)');
+    }
+    document.querySelectorAll('.step').forEach(s => s.classList.toggle('is-sel', sel?.kind === 'ms' && sel.id === s.dataset.ms));
+    const key = sel ? sel.kind + ':' + sel.id : '';
+    const shown = panels.find(p => p.dataset.inspect === key) || panels[0];
+    for (const p of panels) p.hidden = p !== shown;
+  }
+
+  const select = next => { sel = next && sel && next.kind === sel.kind && next.id === sel.id ? null : next; paint(); };
+
+  function toggleAdr(id, { open, scroll } = {}) {
+    const row = document.getElementById(id), detail = document.getElementById('d-' + id);
+    const expand = open ?? row.getAttribute('aria-expanded') !== 'true';
+    row.setAttribute('aria-expanded', String(expand));
+    detail.hidden = !expand;
+    if (expand) { sel = { kind: 'adr', id }; paint(); }
+    if (scroll) { row.scrollIntoView({ block: 'start' }); row.focus({ preventScroll: true }); }
+  }
+
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-comp],[data-comp-chip],[data-adr],[data-row],[data-ms],#reset');
+    if (!t) return;
+    if (t.id === 'reset') { sel = null; paint(); }
+    else if (t.dataset.comp) select({ kind: 'comp', id: t.dataset.comp });
+    else if (t.dataset.compChip) { sel = { kind: 'comp', id: t.dataset.compChip }; paint(); document.getElementById('architecture').scrollIntoView(); }
+    else if (t.dataset.adr) toggleAdr(t.dataset.adr, { open: true, scroll: true });
+    else if (t.dataset.row) toggleAdr(t.dataset.row);
+    else if (t.dataset.ms) { select({ kind: 'ms', id: t.dataset.ms }); if (sel) document.getElementById('architecture').scrollIntoView(); }
+  });
+  document.addEventListener('keydown', e => {
+    const row = e.target.closest?.('[data-row]');
+    if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleAdr(row.dataset.row); }
+    if (e.key === 'Escape' && sel) { sel = null; paint(); }
+  });
+  new ResizeObserver(draw).observe(map);
+  draw();
+
+  // Table of contents follows the reading position.
+  const links = [...document.querySelectorAll('.toc a')];
+  const io = new IntersectionObserver(entries => {
+    for (const en of entries) if (en.isIntersecting) links.forEach(a => a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + en.target.id)));
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  document.querySelectorAll('.doc-section').forEach(s => io.observe(s));
+
+  // Theme: own toggle when opened as a file; follows the viewer when embedded (sandboxed iframe gets a message).
+  const btn = document.getElementById('theme');
+  const setTheme = theme => { document.documentElement.dataset.theme = theme; btn.textContent = theme === 'dark' ? '浅色' : '暗色'; };
+  btn.addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+  window.addEventListener('message', e => {
+    const theme = e.source === window.parent && e.data?.type === 'plan-theme' ? e.data.theme : null;
+    if (theme === 'dark' || theme === 'light') { setTheme(theme); btn.hidden = true; }
+  });
+  setTheme(document.documentElement.dataset.theme);
+})();
+</script>
+</body></html>
