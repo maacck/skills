@@ -78,7 +78,7 @@ format: 2
 
 ## Open Questions
 
-<!-- Interview order: highest blast radius first. On alignment, check each box and record the answer after it. -->
+<!-- Interview in rounds: ask only questions whose prerequisites are settled, highest blast radius first. On alignment, check each box and record the answer after it. -->
 
 - [ ] {{Question only the user can answer}} — recommended: {{default}}; changes: {{what}}
 

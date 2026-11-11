@@ -89,7 +89,12 @@ Plans fail on what nobody wrote down. Every unknown the plan leaves open becomes
 
 **Blindspot pass** — before planning changes in code the user hasn't worked in, or any area with history (migrations, reverts, flags). Follow `references/blindspot-prompt.md`: inline, or as a read-only subagent for large areas. Each finding carries evidence, why it bites, and where it lands: Constraint, Risk, ADR, task, or Open Question. Record findings in the Blindspots table. A finding that changes nothing in the plan is noise; drop it.
 
-**Interview** — for what only the user can answer: one question at a time, highest blast radius first (answers that change architecture or data model before naming and UX details). Each question carries your recommended answer and what it would change. Stop once remaining answers would not change the plan; adopt your recommended defaults and list them as assumptions.
+**Interview** — for what only the user can answer. Map which decisions depend on which, then ask in rounds:
+
+- A round holds only questions whose prerequisites are settled; a question that depends on another still open waits for a later round. At most ~4 per round, numbered, highest blast radius first (architecture and data model before naming and UX).
+- Each question carries your recommended answer and what it would change, worded so "yes" accepts the recommendation.
+- Facts are your job, not the user's: look them up, or dispatch a read-only subagent for large searches. Ask the rest of the round meanwhile; only questions that depend on the lookup wait.
+- After each round, recompute what is unblocked. Stop once remaining answers would not change the plan; adopt your recommended defaults and list them as assumptions.
 
 **Show, don't ask** — when the user will only "know it when they see it" (output format, API ergonomics, UX, naming): present 2–4 concrete alternatives (sample output, usage snippet, throwaway mock) and let them react. When words run out, ask for a reference (a file, repo, or product that does it right), then state what you will copy and its gotchas.
 
@@ -207,7 +212,8 @@ Set Status `in-progress`. **Inline:** implement task by task in this session. **
 | Subagents editing the tracker | Orchestrator is the only writer |
 | `.plans` added to the project `.gitignore` | `.plans/.gitignore` already ignores the folder |
 | Planning unfamiliar code without a blindspot pass | Run `references/blindspot-prompt.md` before writing the plan |
-| Ten questions dumped on the user at once | Interview: one at a time, highest blast radius first |
+| Every question dumped at once, including ones that depend on unanswered ones | Interview in rounds: only questions whose prerequisites are settled, ≤~4, highest blast radius first |
+| Asking the user for facts the repo or tools can answer | Look it up or dispatch a subagent; ask only for decisions |
 | Trusting a subagent's "done" | Accept on evidence: rerun Verify, diff ⊆ task Files |
 | Re-dispatching a failed task with the same instruction | New attempt folder with a brief; change context, scope, or model |
 | Pushing a review the user declined | Offer once per gate, then proceed |
