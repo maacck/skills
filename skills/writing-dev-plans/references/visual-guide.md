@@ -40,9 +40,9 @@ Read the visual generation guide at <absolute guide path>, the reference sample 
 
 | Borrow | Detail |
 |---|---|
-| Palette and type | The `:root` / `:root[data-theme="light"]` variables, font stacks, sizes, spacing. Copy the variable block as is so every visual matches the viewer. |
+| Palette and type | The `:root` / `:root[data-theme="light"]` variables (including the `--syn-*` syntax colors), font stacks, sizes, spacing. Copy the variable block as is so every visual matches the viewer. |
 | Page frame | Sticky top bar (title, source path, theme toggle), left table of contents with scroll tracking, one document column, footer linking the source with "以 md 为准". |
-| Components | Fact strip, cards (with a warning variant for the weakest point), expandable decision rows with a detail grid (chosen / rejected / consequences), tables with grouped rows, milestone steps, `<details>` for background material, chips that jump to an ADR. |
+| Components | Fact strip, cards (with a warning variant for the weakest point), expandable decision rows with a detail grid (chosen / rejected / consequences), tables with grouped rows, milestone steps, `<details>` for background material, chips that jump to an ADR, highlighted code blocks (ADR-3, ADR-8 details). |
 | Interaction patterns | Component map: click a node to dim unrelated nodes and show an inspector panel (files, milestone, risks, constraining ADRs); click an ADR or milestone to highlight its components; Escape clears. Rows expand with Enter/Space and keep `aria-expanded` in sync. Chips scroll to and open their target. |
 | Static content, light script | Inspector panels exist in the markup (`hidden`), relations sit in `data-*` attributes, and the script only reads them. |
 
@@ -84,6 +84,7 @@ Draw the technical structure the source describes (components, data flow, states
 
 - One self-contained HTML file; opened directly from disk it must work. No network except pinned CDN modules, and the page stays readable when they fail.
 - Mermaid if needed: `import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'`, `securityLevel: 'strict'`, colors from the CSS variables. Keep the diagram source readable as the fallback, with the source's node names. Hand-drawn SVG and HTML maps are fine; color them with CSS variables.
+- Code blocks: every fenced block in the source becomes `<pre class="code"><code class="language-<fence language>">` holding the code verbatim and escaped (never trimmed, paraphrased, or merged into prose). Unlabelled fences use `language-plaintext`. Copy the sample's `pre.code` and `.hljs-*` CSS and its highlight module script (the last `<script type="module">`): it colors the blocks with highlight.js from the CDN and leaves them plain when offline. Inline code stays `<code>`; Mermaid source stays `pre.mermaid`.
 - Light and dark through `data-theme` on `<html>`. When embedded, the viewer posts `{ type: 'plan-theme', theme }` from the parent window: follow it and hide the page's own theme toggle (see the sample's last lines).
 - The viewer embeds the page in a sandboxed iframe without same-origin access: no `localStorage`, cookies, or parent DOM access.
 - Accessible names on controls and diagrams, visible focus, WCAG AA contrast in both themes, `prefers-reduced-motion` respected, no horizontal scroll at 390 px width.

@@ -13,6 +13,7 @@
   --success: #8db899; --warning: #c5a66d; --warning-wash: rgba(197, 166, 109, .1); --error: #cf8d84;
   --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
   --mono: "SFMono-Regular", "Cascadia Mono", "Sarasa Mono SC", Menlo, Consolas, monospace;
+  --syn-keyword: #93aecb; --syn-string: #a5c48f; --syn-number: #c5a66d; --syn-title: #c9b6e0; --syn-type: #8fc1c4; --syn-attr: #b9cbc3; --syn-regexp: #cf8d84;
 }
 :root[data-theme="light"] {
   color-scheme: light;
@@ -20,6 +21,7 @@
   --ink: #1b2124; --muted: #4f5a60; --faint: #6b767c; --line: #d3dadb; --line-strong: #b4bfc1;
   --accent: #35604f; --accent-ink: #2b5142; --accent-wash: rgba(53, 96, 79, .08);
   --success: #2b6a43; --warning: #765414; --warning-wash: rgba(118, 84, 20, .07); --error: #a1362b;
+  --syn-keyword: #2f5a8a; --syn-string: #2b6a43; --syn-number: #765414; --syn-title: #6a3f8f; --syn-type: #1f6b70; --syn-attr: #35604f; --syn-regexp: #a1362b;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -209,6 +211,19 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line);
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 figure.derived { margin: 0; }
 .context { display: grid; gap: 14px; max-width: 75ch; margin-bottom: 18px; }
+pre.code { margin: 0; padding: 12px 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font: 12.5px/1.6 var(--mono); tab-size: 2; }
+pre.code code { padding: 0; background: none; font: inherit; overflow-wrap: normal; }
+pre.code + pre.code { margin-top: 8px; }
+/* highlight.js tokens; colors come from --syn-* so both themes follow the palette */
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-operator { color: var(--syn-keyword); }
+.hljs-string, .hljs-template-string, .hljs-addition, .hljs-selector-attr { color: var(--syn-string); }
+.hljs-number, .hljs-literal, .hljs-symbol, .hljs-variable.constant_, .hljs-bullet { color: var(--syn-number); }
+.hljs-title, .hljs-section, .hljs-name, .hljs-selector-id, .hljs-selector-class { color: var(--syn-title); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_ { color: var(--syn-type); }
+.hljs-attr, .hljs-attribute, .hljs-property, .hljs-params, .hljs-variable, .hljs-template-variable, .hljs-tag { color: var(--syn-attr); }
+.hljs-regexp, .hljs-deletion, .hljs-link { color: var(--syn-regexp); }
+.hljs-comment, .hljs-quote, .hljs-meta, .hljs-doctag { color: var(--muted); font-style: italic; }
+.hljs-emphasis { font-style: italic; } .hljs-strong { font-weight: 600; }
 </style>
 
 <!--
@@ -339,6 +354,7 @@ figure.derived { margin: 0; }
           <div class="drop"><h4>放弃</h4><ul><li><b>扫描整个 <code>.plans/</code></b><span> — 旧方案会被新规则卡住</span></li><li><b>header 字段记版本</b><span> — 混在给人看的头部</span></li><li><b>HTML 注释记版本</b><span> — 易被当模板说明删除</span></li><li><b>用 skill 版本号</b><span> — 文字改动也会触发版本变化</span></li></ul></div>
           <div><h4>影响</h4><ul><li>格式可执行，新旧方案共存</li><li>skill 首次依赖 Node（无 Node 时跳过并提示，退回手工 grep 自检）</li></ul></div>
           <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip" type="button" data-comp-chip="templates">templates/</button><button class="chip" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div>
+          <div class="full"><h4>命令</h4><pre class="code"><code class="language-bash">node &lt;skill-dir&gt;/scripts/lint-plan.mjs &lt;plan-dir&gt; [--as &lt;N&gt;]</code></pre><pre class="code"><code class="language-plaintext">file:line  error|warn  rule  message</code></pre></div>
           <div class="full"><h4>细则</h4><ul><li>since 1：Status 值、任务标题格式与状态、任务 ID 唯一、<code>Depends on</code> / <code>Verify</code> 必填、依赖存在且无环、ADR 编号与 Status、日志 kind 与任务引用、代码块外无 <code>{{</code>、<code>runs/</code> 文件夹名与 handoff Status、状态一致性</li><li>since 2：frontmatter 合法、impl 有 <code>Execution</code>、plan 有 <code>## At a Glance</code></li><li>warn：TBD/TODO；aligned 后仍有未勾选问题；subagent 模式下 <code>[doing]</code> 任务无 run 文件夹；有 handoff 但 impl 未记日志</li><li><code>--as &lt;N&gt;</code>：按 format N 检查旧方案，列出升级需要补的内容</li><li>跨文件规则取两者较小值；文件 format 高于已安装 skill 时只 warn</li><li>执行中每次更新 <code>impl.md</code> 后跑一次；shell 打开某个方案时顶部显示其 lint 结果</li></ul></div>
           
           
@@ -419,7 +435,8 @@ figure.derived { margin: 0; }
           <div class="drop"><h4>放弃</h4><ul><li><b>只比整篇哈希</b><span> — 无法增量同步，每次都要全量重写</span></li><li><b>用文件修改时间</b><span> — 编辑器保存、git checkout 都会改动</span></li><li><b>让 agent 自己记得同步</b><span> — 正是要解决的问题</span></li></ul></div>
           <div><h4>影响</h4><ul><li>过时判定确定、可脚本化</li><li>增量同步只改变化单元，省 token</li><li>执行期 visual-impl 不会因进度更新而误报过时</li></ul></div>
           <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip" type="button" data-comp-chip="project">project.html</button></div></div>
-          <div class="full"><h4>细则</h4><ul><li>剔除的追踪噪声：header <code>Status</code> 行、任务标题末尾的 <code>[status]</code>、步骤勾选状态、Progress log 条目</li><li>清单：<code>{source, format, version_hash, units, stamped_at}</code></li><li>哈希只由脚本写入，agent 与 subagent 不手写</li><li>执行期间任务状态与日志变化不会触发</li></ul></div>
+          <div class="full"><h4>命令与清单</h4><pre class="code"><code class="language-bash">node &lt;skill-dir&gt;/scripts/visual-status.mjs &lt;plan-dir&gt; [--stamp] [--json]</code></pre><pre class="code"><code class="language-html">&lt;script type="application/json" id="plan-source"&gt;{source, format, version_hash, units, stamped_at}&lt;/script&gt;</code></pre></div>
+          <div class="full"><h4>细则</h4><ul><li>剔除的追踪噪声：header <code>Status</code> 行、任务标题末尾的 <code>[status]</code>、步骤勾选状态、Progress log 条目</li><li>哈希只由脚本写入，agent 与 subagent 不手写</li><li>执行期间任务状态与日志变化不会触发</li></ul></div>
           
           
         </div></td></tr>
@@ -623,5 +640,20 @@ figure.derived { margin: 0; }
   });
   setTheme(document.documentElement.dataset.theme);
 })();
+</script>
+<script type="module">
+// Syntax highlighting for pre > code.language-*; code stays plain text if the CDN is unreachable.
+const blocks = document.querySelectorAll('pre > code[class*="language-"]:not(.language-mermaid):not(.language-plaintext)');
+if (blocks.length) {
+  try {
+    const { default: hljs } = await import('https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/es/highlight.min.js');
+    for (const code of blocks) {
+      const language = [...code.classList].find(c => c.startsWith('language-')).slice(9);
+      if (!hljs.getLanguage(language)) continue;
+      code.innerHTML = hljs.highlight(code.textContent, { language }).value;
+      code.classList.add('hljs');
+    }
+  } catch { /* offline: keep plain code */ }
+}
 </script>
 </body></html>

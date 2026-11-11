@@ -15,6 +15,7 @@
   --line: #3b4141;
   --wash: #24292a;
   --focus: #e5c76b;
+  --syn-keyword: #93aecb; --syn-string: #a5c48f; --syn-number: #c5a66d; --syn-title: #c9b6e0; --syn-type: #8fc1c4; --syn-attr: #b9cbc3; --syn-regexp: #cf8d84;
   --font: "SFMono-Regular", "Cascadia Mono", "Sarasa Mono SC", Consolas, "PingFang SC", monospace;
   --appbar-h: 48px;
   --status-h: 28px;
@@ -37,6 +38,7 @@
   --line: #c5cdcf;
   --wash: #e3e8e9;
   --focus: #1a5fb4;
+  --syn-keyword: #2f5a8a; --syn-string: #2b6a43; --syn-number: #765414; --syn-title: #6a3f8f; --syn-type: #1f6b70; --syn-attr: #35604f; --syn-regexp: #a1362b;
 }
 
 * { box-sizing: border-box; }
@@ -335,6 +337,16 @@ body.is-visual-open { overflow: hidden; }
 .md pre, .md-raw { overflow-x: auto; padding: 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--raised); white-space: pre; font-size: 13px; line-height: 1.6; }
 .md-raw { white-space: pre-wrap; }
 .md pre code { padding: 0; background: none; }
+/* highlight.js tokens (common.mjs renderMarkdown); same --syn-* map as assets/visual-sample.html */
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-operator { color: var(--syn-keyword); }
+.hljs-string, .hljs-template-string, .hljs-addition, .hljs-selector-attr { color: var(--syn-string); }
+.hljs-number, .hljs-literal, .hljs-symbol, .hljs-variable.constant_, .hljs-bullet { color: var(--syn-number); }
+.hljs-title, .hljs-section, .hljs-name, .hljs-selector-id, .hljs-selector-class { color: var(--syn-title); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_ { color: var(--syn-type); }
+.hljs-attr, .hljs-attribute, .hljs-property, .hljs-params, .hljs-variable, .hljs-template-variable, .hljs-tag { color: var(--syn-attr); }
+.hljs-regexp, .hljs-deletion, .hljs-link { color: var(--syn-regexp); }
+.hljs-comment, .hljs-quote, .hljs-meta, .hljs-doctag { color: var(--muted); font-style: italic; }
+.hljs-emphasis { font-style: italic; } .hljs-strong { font-weight: 600; }
 .md blockquote { margin: 1rem 0; padding: .1rem 1rem; border-left: 3px solid var(--line); color: var(--muted); }
 .unit > .md > h2:first-child { margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 17px; font-weight: 600; line-height: 1.4; text-transform: uppercase; }
 .unit > .md > h2:first-child::before { content: "## "; color: var(--muted); }
