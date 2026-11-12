@@ -120,7 +120,7 @@ Draw the technical structure the source describes (components, data flow, states
 ## Technical requirements
 
 - One HTML file that works opened from disk. The generated block inlines the kit; Mermaid, marked, DOMPurify, and highlight.js load from pinned CDN modules, and when they fail the page stays readable (source text shows as plain text, Mermaid source stays visible with an error line).
-- Colors come from the kit's CSS variables (`--bg --paper --raised --ink --muted --accent --success --warning --error ...`) so both themes work; hand-drawn SVG uses them too.
+- Colors come from the kit's CSS variables (`--bg --paper --raised --wash --selected --ink --muted --faint --line --line-strong --accent --accent-ink --accent-wash --success --warning --warning-wash --error --error-wash --syn-*`), so both themes work; hand-drawn SVG uses them too. Keep the defaults unless the user asks for a different look or the plan's subject calls for one. To change the theme, override these variables in your own `<style>` (never in the generated block): put the dark values in `:root` and the light values in `:root[data-theme="light"]`, always both, because a plain `:root` override also applies in light. Change only values, not names; Mermaid, code highlighting, and kit components follow the variables. Every text color keeps WCAG AA contrast (4.5:1, 3:1 for large text) against `--paper`, `--raised`, and `--wash` in both themes; the script does not check this, so check it yourself.
 - The viewer embeds the page in a sandboxed iframe and posts `{ type: 'plan-theme', theme }`; the kit follows it and hides `[data-theme-toggle]`. No `localStorage`, cookies, or parent DOM access.
 - Accessible names on controls and diagrams (`role="img"` and `aria-label` on `.diagram`), visible focus, WCAG AA contrast in both themes, `prefers-reduced-motion` respected, no horizontal scroll at 390 px width.
 
@@ -135,4 +135,4 @@ Rewrite only the summary elements, templates, and diagram nodes that belong to t
 - Fidelity of the summary layer: pick three ADRs (or tasks) and compare their rows and drawer summaries with the source; every risk row and open question is present; every diagram node and edge exists in the source.
 - Minimum bar: every row of the [Minimum bar](#minimum-bar-hard) table holds; any "not acceptable" pattern sends the page back.
 - Interaction: open the file in a browser; every diagram renders (no error line), zoom and full screen work, every `data-open` control opens its drawer with the source filled, theme toggles. Controls that do nothing fail.
-- Look: palette and type match the sample in both themes; technical structure is drawn, not left as prose; no slogans or invented labels.
+- Look: palette and type match the sample in both themes, or the page overrides the variables for both themes (dark in `:root`, light in `:root[data-theme="light"]`) with readable contrast; technical structure is drawn, not left as prose; no slogans or invented labels.
