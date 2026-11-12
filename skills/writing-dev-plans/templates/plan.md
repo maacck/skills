@@ -46,7 +46,7 @@ format: 2
 
 ## Blindspots
 
-<!-- From the blindspot pass. Kind: landmine | history | missing concept | convention | prior art. Delete if the area is well known. -->
+<!-- Only evidence-backed findings that change the plan. Kind: landmine | history | missing concept | convention | prior art. Delete if there are no such findings. -->
 
 | Finding | Kind | Why it bites | Lands in |
 |---|---|---|---|

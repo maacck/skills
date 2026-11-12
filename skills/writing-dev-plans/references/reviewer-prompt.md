@@ -21,7 +21,7 @@ Verify claims against the repository — open the files, symbols, and commands t
 | Grounding | Claims about current code, behavior, and existing patterns hold in the repository |
 | Options | Each real decision has ≥2 genuine options with tradeoffs; no strawmen; the chosen ADR follows from the evidence |
 | Constraints | Compatibility, data, performance, dependencies, environments stated; none contradicted by the code |
-| Blindspots | Unfamiliar or history-heavy areas probed; every finding lands in a Constraint, Risk, ADR, or Open Question |
+| Blindspots | Important uncertainties or concrete risk signals from normal research investigated; every reported finding has evidence and a plan consequence; no table required when there are no such findings |
 | Risks | Pre-mortem covers the likely failures; irreversible steps (migrations, public API, data deletion) have a rollback or mitigation |
 | Scope | Nothing beyond the goal (YAGNI); Non-goals named; nothing the goal requires is missing |
 | Open questions | Decisions only the user can make are asked, not buried as assumptions; highest blast radius first |

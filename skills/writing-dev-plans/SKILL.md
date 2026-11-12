@@ -87,7 +87,7 @@ Plans fail on what nobody wrote down. Every unknown the plan leaves open becomes
 | Unknown knowns | Tacit preferences the user would recognize but never state | Show, don't ask; ask for a reference |
 | Unknown unknowns | Traps in the territory nobody has considered | Blindspot pass |
 
-**Blindspot pass** — before planning changes in code the user hasn't worked in, or any area with history (migrations, reverts, flags). Follow `references/blindspot-prompt.md`: inline, or as a read-only subagent for large areas. Each finding carries evidence, why it bites, and where it lands: Constraint, Risk, ADR, task, or Open Question. Record findings in the Blindspots table. A finding that changes nothing in the plan is noise; drop it.
+**Blindspot pass** — an on-demand investigation, not a second reading pass. Use `references/blindspot-prompt.md` when normal code/caller/test reading leaves an uncertainty that could change the plan, reveals a concrete risk signal (e.g. an in-flight migration, a related revert, or environment drift), or the user explicitly requests it. Investigate only the relevant gaps, inline or with a read-only subagent for large areas; do not repeat settled research. Record only evidence-backed findings that change a Constraint, Risk, ADR, task, or Open Question. No such findings → omit the Blindspots table.
 
 **Interview** — for what only the user can answer. Map which decisions depend on which, then ask in rounds:
 
@@ -106,7 +106,7 @@ Skeleton: `templates/plan.md`. ADRs live inline under **Decisions**, numbered `A
 
 Write `## At a Glance` as a concise summary of the direction, key decisions, and weakest point. When presenting the first plan draft, ask about visual HTML as described in `references/viewer.md`; for the conversation shortcut, ask at the first impl draft instead. If accepted, generate visual-impl automatically when the impl draft is ready.
 
-**Alignment gate:** present options, proposed ADRs, blindspots, and open questions (tweakable presentation), and offer an independent review ([Review](#review)), then stop — no `impl.md` yet. When the user confirms: mark ADRs `accepted`, record answers under Open Questions, set Status `aligned`, then write `impl.md`.
+**Alignment gate:** present options, proposed ADRs, blindspots (if any), and open questions (tweakable presentation), and offer an independent review ([Review](#review)), then stop — no `impl.md` yet. When the user confirms: mark ADRs `accepted`, record answers under Open Questions, set Status `aligned`, then write `impl.md`.
 
 ## Implementation
 
@@ -211,7 +211,7 @@ Set Status `in-progress`. **Inline:** implement task by task in this session. **
 | Task too big ("build the API") | Split until each task has one Verify |
 | Subagents editing the tracker | Orchestrator is the only writer |
 | `.plans` added to the project `.gitignore` | `.plans/.gitignore` already ignores the folder |
-| Planning unfamiliar code without a blindspot pass | Run `references/blindspot-prompt.md` before writing the plan |
+| Repeating a full blindspot pass just because code is unfamiliar or old | Read code, callers, and tests first; investigate only remaining material unknowns or concrete risk signals |
 | Every question dumped at once, including ones that depend on unanswered ones | Interview in rounds: only questions whose prerequisites are settled, ≤~4, highest blast radius first |
 | Asking the user for facts the repo or tools can answer | Look it up or dispatch a subagent; ask only for decisions |
 | Trusting a subagent's "done" | Accept on evidence: rerun Verify, diff ⊆ task Files |
