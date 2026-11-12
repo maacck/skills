@@ -26,6 +26,16 @@ format: 2
 
 - {{Observable outcome}}
 
+## Acceptance Criteria
+
+<!-- Key or ambiguous cases only; do not restate Goals, force a count, or enumerate every edge case.
+     Use AC-1, AC-2, … for reference. Scenario = necessary preconditions + action; Expected result = observable behavior, not implementation.
+     Keep undecided behavior in Open Questions until confirmed. -->
+
+| ID | Scenario | Expected result |
+|---|---|---|
+| AC-1 | {{necessary preconditions and action}} | {{observable result}} |
+
 ## Non-goals
 
 - {{Explicitly out of scope}}
