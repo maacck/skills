@@ -1,14 +1,21 @@
 // @ts-check
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { hashDoc, normalizeUnit } from './source-hash.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { LOG_LIKE } from './parse-plan.mjs';
+import { SelectorError, contentLines, parseTree, pathOf, sectionsUnder, select, sourceText } from './md-select.mjs';
+import { hashDoc } from './source-hash.mjs';
 
 export const VISUAL_FILES = { plan: 'visual-plan.html', impl: 'visual-impl.html' };
-export const SAMPLE = fileURLToPath(new URL('../../assets/visual-sample.html', import.meta.url));
+const ASSETS = fileURLToPath(new URL('../../assets/', import.meta.url));
+export const SAMPLE = path.join(ASSETS, 'visual-sample.html');
 export const MANIFEST_RE = /<script type="application\/json" id="plan-source">([\s\S]*?)<\/script>/;
+const SOURCES_RE = /<script type="application\/json" id="plan-sources">[\s\S]*?<\/script>/;
+const CSS_RE = /<style\b[^>]*\bid="visual-kit"[^>]*>[\s\S]*?<\/style>|<link\b[^>]*\bid="visual-kit"[^>]*>/g;
+const JS_RE = /<script\b[^>]*\bid="visual-kit-js"[^>]*>[\s\S]*?<\/script>/g;
 
 /** @typedef {{source?:'plan.md'|'impl.md', format?:number, version_hash?:string, units?:Record<string,string>, stamped_at?:string}} Manifest */
+/** @typedef {{units:{id:string,kind:string,title:string,level:number,line:number,md:string}[], title?:string|null}} Doc */
 
 /** @param {string} html @returns {Manifest|null} */
 export function readManifest(html) {
@@ -22,40 +29,126 @@ export function writeManifest(html, manifest) {
   return html.replace(MANIFEST_RE, () => `<script type="application/json" id="plan-source">${JSON.stringify(manifest)}</script>`);
 }
 
-/** `data-src` attribute values in markup; scripts and comments are ignored. @param {string} html */
+const decode = s => s.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&amp;/g, '&');
+
+/** `data-src` selectors in markup; scripts, styles and comments are ignored. @param {string} html */
 export function dataSrcs(html) {
-  const markup = html.replace(/<script\b[\s\S]*?<\/script>|<!--[\s\S]*?-->/gi, '');
-  return new Set([...markup.matchAll(/\sdata-src\s*=\s*(?:"([^"]*)"|'([^']*)')/g)].map(m => m[1] ?? m[2]));
+  const markup = html.replace(/<script\b[\s\S]*?<\/script>|<style\b[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, '');
+  return new Set([...markup.matchAll(/\sdata-src\s*=\s*(?:"([^"]*)"|'([^']*)')/g)].map(m => decode(m[1] ?? m[2]).trim()));
 }
 
-/** Units with content beyond their heading (HTML comments and tracking noise ignored); these need coverage. @param {{units:{id:string,kind:string,md:string}[]}} doc */
-export function requiredUnits(doc) {
-  return doc.units.filter(unit => normalizeUnit(unit).replace(/<!--[\s\S]*?-->/g, '').split('\n').slice(unit.kind === 'header' ? 0 : 1).join('').trim()).map(unit => unit.id);
+const trees = new WeakMap();
+/** The selector tree of a parsed document; rebuilt from its units, which together hold every body line. @param {Doc} doc */
+export function treeOf(doc) {
+  let tree = trees.get(doc);
+  if (!tree) trees.set(doc, tree = parseTree(doc.units.map(unit => unit.md).join('')));
+  return tree;
 }
 
-/** Starting file for the generating agent: the manifest slot, the required IDs, and the reference sample. @param {{title:string|null, units:{id:string,kind:string,md:string}[]}} doc */
+/** Selectors for every section with uncovered content; root content uses block kinds. Tracking noise (header Status, log lines) is not content.
+ * @param {ReturnType<typeof treeOf>} tree @param {Set<number>} covered */
+function uncovered(tree, covered) {
+  const first = tree.root.children[0]?.start ?? Infinity;
+  const lines = [...contentLines(tree)].filter(k => !covered.has(k) && !LOG_LIKE.test(tree.lines[k]) && !(k < first && /^- Status:/.test(tree.lines[k])));
+  const out = [];
+  const kinds = { list: 'li', p: 'p', table: 'table', code: 'code', quote: 'quote' };
+  const walk = sec => {
+    const hit = sec.blocks.filter(b => kinds[b.kind] && lines.some(k => k >= b.start && k < b.end));
+    if (hit.length) out.push(...(sec.kind === 'root' ? [...new Set(hit.map(b => kinds[b.kind]))] : [pathOf(tree, sec)]));
+    sec.children.forEach(walk);
+  };
+  walk(tree.root);
+  return out;
+}
+
+/** Starting file for the generating agent: the manifest slot, the selectors to cover, the kit by reference.
+ * @param {Doc} doc */
 export function visualSkeleton(doc) {
   const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+  const tree = treeOf(doc);
+  const url = name => pathToFileURL(path.join(ASSETS, name)).href;
   return `<!doctype html>
-<html>
+<html lang="${/[\u3400-\u9fff]/.test(doc.title ?? '') ? 'zh-CN' : 'en'}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(doc.title)}</title>
 <script type="application/json" id="plan-source">{}</script>
+<style>/* page-specific styles only; the shared kit is the generated block at the end of <body> */</style>
 </head>
 <body>
-<!-- reference sample: ${SAMPLE} -->
-<!-- required data-src: ${requiredUnits(doc).join(', ')} -->
+<!-- Write the page here. Reference sample: ${SAMPLE} -->
+<!-- Cite source with an empty element: <div data-src='selector'></div>. Selectors that must be covered: ${uncovered(tree, new Set()).join(' | ')} -->
+
+<!-- generated by visual-status.mjs: do not edit; replaced by --stamp, which inlines the kit and the cited source -->
+<link rel="stylesheet" id="visual-kit" href="${url('visual-kit.css')}">
+<script id="visual-kit-js" src="${url('visual-kit.js')}"></script>
+<script type="application/json" id="plan-sources">{}</script>
 </body>
 </html>
 `;
 }
 
-/** @param {string} html @param {{units:{id:string,kind:string,md:string}[]}} doc */
+/** @param {string} html @param {Doc} doc
+ * @returns {{missing:string[], broken:string[], sources:Record<string,string>}} */
 export function coverage(html, doc) {
-  const srcs = dataSrcs(html), unitIds = new Set(doc.units.map(unit => unit.id));
-  return { missing: requiredUnits(doc).filter(id => !srcs.has(id)), unknown: [...srcs].filter(id => !unitIds.has(id)) };
+  const tree = treeOf(doc);
+  const covered = new Set(), broken = [], sources = {};
+  for (const selector of dataSrcs(html)) {
+    try {
+      const nodes = select(tree, selector);
+      for (const node of nodes) for (let k = node.start; k < node.end; k++) covered.add(k);
+      sources[selector] = sourceText(tree, nodes);
+    } catch (error) {
+      if (!(error instanceof SelectorError)) throw error;
+      broken.push(`${selector}: ${error.message}`);
+    }
+  }
+  return { missing: uncovered(tree, covered), broken, sources };
+}
+
+const kitText = () => ({ css: readFileSync(path.join(ASSETS, 'visual-kit.css'), 'utf8'), js: readFileSync(path.join(ASSETS, 'visual-kit.js'), 'utf8') });
+const inlineCss = css => `<style id="visual-kit">\n${css}</style>`;
+const inlineJs = js => `<script id="visual-kit-js">\n${js}</script>`;
+const count = (html, re) => (html.match(re) ?? []).length;
+
+/** @param {string} html @returns {'ok'|'linked'|'outdated'|'missing'|'duplicate'} */
+export function kitState(html) {
+  const css = count(html, CSS_RE), js = count(html, JS_RE);
+  if (css > 1 || js > 1) return 'duplicate';
+  if (!css || !js) return 'missing';
+  const kit = kitText();
+  if (html.includes(inlineCss(kit.css)) && html.includes(inlineJs(kit.js))) return 'ok';
+  return html.includes('<link rel="stylesheet" id="visual-kit"') && html.includes('<script id="visual-kit-js" src=') ? 'linked' : 'outdated';
+}
+
+/** Put the current kit and the cited source into the page, replacing or restoring the generated blocks. Throws on duplicates.
+ * @param {string} html @param {Record<string,string>} sources */
+export function injectGenerated(html, sources) {
+  if (kitState(html) === 'duplicate') throw new Error('duplicate visual-kit block: keep one <style id="visual-kit"> and one <script id="visual-kit-js">');
+  const kit = kitText();
+  const json = JSON.stringify(sources).replace(/</g, '\\u003c');
+  const blocks = [[CSS_RE, inlineCss(kit.css)], [JS_RE, inlineJs(kit.js)], [SOURCES_RE, `<script type="application/json" id="plan-sources">${json}</script>`]];
+  for (const [re, block] of blocks) {
+    const probe = new RegExp(re.source, re.flags.replace('g', ''));
+    if (probe.test(html)) html = html.replace(probe, () => block);
+    else html = html.includes('</body>') ? html.replace('</body>', () => `${block}\n</body>`) : html + block;
+  }
+  return html;
+}
+
+/** Unit ids as selectors the page author can use; ids that no longer exist stay as they are.
+ * @param {Doc} doc @param {string[]} ids */
+function labels(doc, ids) {
+  const tree = treeOf(doc), sections = sectionsUnder(tree.root);
+  return ids.map(id => {
+    const index = doc.units.findIndex(u => u.id === id), unit = doc.units[index];
+    if (!unit) return id;
+    if (unit.kind === 'header') return '(top)';
+    const nth = doc.units.slice(0, index + 1).filter(u => u.level === unit.level && u.title === unit.title).length;
+    const sec = sections.filter(s => s.depth === unit.level && s.text === unit.title)[nth - 1];
+    return sec ? pathOf(tree, sec) : id;
+  });
 }
 
 /** @param {ReturnType<import('./parse-plan.mjs').readPlanDir>} planDir */
@@ -64,10 +157,11 @@ export function visualStatus(planDir) {
     const kind = file === VISUAL_FILES.plan ? 'plan' : 'impl';
     const html = readFileSync(path.join(planDir.path, file), 'utf8');
     const doc = planDir[kind];
-    const result = { file, kind, state: 'missing-source', changed: [], added: [], removed: [], missing: [], unknown: [] };
+    const result = { file, kind, state: 'missing-source', changed: [], added: [], removed: [], missing: [], broken: [], kit: kitState(html) };
     if (!doc) return result;
 
-    Object.assign(result, coverage(html, doc));
+    const { missing, broken } = coverage(html, doc);
+    Object.assign(result, { missing, broken });
     const current = hashDoc(doc);
     const manifest = readManifest(html);
     if (!manifest) {
@@ -79,8 +173,8 @@ export function visualStatus(planDir) {
     } else {
       result.state = 'stale';
       const previous = manifest.units ?? {};
-      result.changed = Object.keys(current.units).filter(id => Object.hasOwn(previous, id) && previous[id] !== current.units[id]);
-      result.added = Object.keys(current.units).filter(id => !Object.hasOwn(previous, id));
+      result.changed = labels(doc, Object.keys(current.units).filter(id => Object.hasOwn(previous, id) && previous[id] !== current.units[id]));
+      result.added = labels(doc, Object.keys(current.units).filter(id => !Object.hasOwn(previous, id)));
       result.removed = Object.keys(previous).filter(id => !Object.hasOwn(current.units, id));
     }
     return result;

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { knownFormat, readPlanDir } from './lib/parse-plan.mjs';
 import { hashDoc } from './lib/source-hash.mjs';
-import { VISUAL_FILES, coverage, readManifest, visualSkeleton, visualStatus, writeManifest } from './lib/visual.mjs';
+import { VISUAL_FILES, coverage, injectGenerated, readManifest, visualSkeleton, visualStatus, writeManifest } from './lib/visual.mjs';
 
 const args = process.argv.slice(2);
 let dir, init, stamp, json = false, invalid = false;
@@ -39,15 +39,18 @@ if (invalid || !dir || (init !== undefined && stamp !== undefined) || !fs.exists
       const doc = planDir[kind], file = VISUAL_FILES[kind];
       const html = fs.existsSync(target(kind)) ? fs.readFileSync(target(kind), 'utf8') : null;
       const errors = [];
+      let stamped = html;
       if (!doc) errors.push(`missing source: ${kind}.md`);
       if (html === null) errors.push(`missing ${file}; run --init ${kind}`);
       else if (!readManifest(html)) errors.push('missing manifest: keep <script type="application/json" id="plan-source"> from --init');
       if (doc && html !== null) {
-        const { missing } = coverage(html, doc);
-        if (missing.length) errors.push(`missing data-src: ${missing.join(', ')}`);
+        const { missing, broken, sources } = coverage(html, doc);
+        if (missing.length) errors.push(`missing data-src: ${missing.join(' | ')}`);
+        for (const item of broken) errors.push(`broken data-src: ${item}`);
+        try { stamped = injectGenerated(html, sources); } catch (error) { errors.push(error.message); }
       }
       if (errors.length) { console.log(`${file}  not stamped`); for (const error of errors) console.log(`  ${error}`); }
-      else writes.push({ kind, doc, html });
+      else writes.push({ kind, doc, html: /** @type {string} */ (stamped) });
     }
     if (writes.length < kinds.length) process.exitCode = 1;
     else if (!writes.length) console.log('no visual documents');
@@ -64,9 +67,10 @@ if (invalid || !dir || (init !== undefined && stamp !== undefined) || !fs.exists
       let line = `${status.file}  ${status.state}`;
       for (const key of ['changed', 'added', 'removed']) if (status[key].length) line += `  ${key}: ${status[key].join(', ')}`;
       console.log(line);
-      if (status.missing.length) console.log(`  missing data-src: ${status.missing.join(', ')}`);
-      if (status.unknown.length) console.log(`  unknown data-src: ${status.unknown.join(', ')}`);
+      if (status.missing.length) console.log(`  missing data-src: ${status.missing.join(' | ')}`);
+      for (const item of status.broken) console.log(`  broken data-src: ${item}`);
+      if (['outdated', 'missing', 'duplicate'].includes(status.kit)) console.log(`  kit ${status.kit}: --stamp restores it`);
     }
-    if (statuses.some(status => status.state !== 'fresh' || status.missing.length)) process.exitCode = 1;
+    if (statuses.some(status => status.state !== 'fresh' || status.missing.length || status.broken.length)) process.exitCode = 1;
   }
 }

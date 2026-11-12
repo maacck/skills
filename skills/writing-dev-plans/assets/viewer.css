@@ -337,7 +337,7 @@ body.is-visual-open { overflow: hidden; }
 .md pre, .md-raw { overflow-x: auto; padding: 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--raised); white-space: pre; font-size: 13px; line-height: 1.6; }
 .md-raw { white-space: pre-wrap; }
 .md pre code { padding: 0; background: none; }
-/* highlight.js tokens (common.mjs renderMarkdown); same --syn-* map as assets/visual-sample.html */
+/* highlight.js tokens (common.mjs renderMarkdown); same --syn-* map as assets/visual-kit.css */
 .hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-operator { color: var(--syn-keyword); }
 .hljs-string, .hljs-template-string, .hljs-addition, .hljs-selector-attr { color: var(--syn-string); }
 .hljs-number, .hljs-literal, .hljs-symbol, .hljs-variable.constant_, .hljs-bullet { color: var(--syn-number); }

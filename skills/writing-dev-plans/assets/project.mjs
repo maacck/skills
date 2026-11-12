@@ -135,7 +135,8 @@ function renderVisual() {
   const detailOf = key => item[key].length ? `${key} ${item[key].length}` : '';
   const summary = ['changed', 'added', 'removed'].map(detailOf).filter(Boolean).join(' · ');
   const title = ['changed', 'added', 'removed'].filter(key => item[key].length).map(key => `${key}: ${item[key].join(', ')}`).join('\n');
-  el.querySelector('.visual-status').innerHTML = `${badge(item.state, tone(item.state))}${summary ? `<span title="${esc(title)}">${esc(summary)}</span>` : ''}${item.missing.length ? badge(`缺 ${item.missing.length} 个 data-src`, 'error').replace('<span', `<span title="${esc(item.missing.join(', '))}"`) : ''}`;
+  const problem = (list, label) => list.length ? badge(`${list.length} ${label}`, 'error').replace('<span', `<span title="${esc(list.join('\n'))}"`) : '';
+  el.querySelector('.visual-status').innerHTML = `${badge(item.state, tone(item.state))}${summary ? `<span title="${esc(title)}">${esc(summary)}</span>` : ''}${problem(item.missing, '处原文未覆盖')}${problem(item.broken, '个 data-src 失效')}`;
   const frame = el.querySelector('iframe');
   if (!frame.dataset.themed) { frame.dataset.themed = '1'; frame.addEventListener('load', postTheme); }
   if (frame.getAttribute('src') !== src) frame.setAttribute('src', src);

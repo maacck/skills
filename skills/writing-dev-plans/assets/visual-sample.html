@@ -1,659 +1,378 @@
 <!doctype html>
-<html lang="zh-CN"><head>
+<!--
+  Reference sample: a finished page for one plan (analytics/plan.md), as the generating agent writes it.
+  Borrow the look, the components and the use of data-src / data-open / data-links; do not copy its section list.
+  The kit (visual-kit.css / .js) and the cited source are NOT written by the agent: they sit in the generated block at the end of <body>.
+  Here the kit is linked and plan-sources is empty, so [data-src] placeholders show their selector.
+-->
+<html lang="zh-CN">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Plan Viewer · Plan</title>
-<script>document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';</script>
-<style>
-:root {
-  color-scheme: dark;
-  --bg: #111314; --paper: #16191b; --raised: #1d2124; --wash: #23282a; --selected: #2a3030;
-  --ink: #e8e6df; --muted: #a6a49c; --faint: #7d7b75; --line: #31373a; --line-strong: #454c4f;
-  --accent: #96aaa1; --accent-ink: #b9cbc3; --accent-wash: rgba(150, 170, 161, .12);
-  --success: #8db899; --warning: #c5a66d; --warning-wash: rgba(197, 166, 109, .1); --error: #cf8d84;
-  --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
-  --mono: "SFMono-Regular", "Cascadia Mono", "Sarasa Mono SC", Menlo, Consolas, monospace;
-  --syn-keyword: #93aecb; --syn-string: #a5c48f; --syn-number: #c5a66d; --syn-title: #c9b6e0; --syn-type: #8fc1c4; --syn-attr: #b9cbc3; --syn-regexp: #cf8d84;
-}
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #eef1f2; --paper: #f8fafa; --raised: #ffffff; --wash: #e7ecec; --selected: #d9e1e1;
-  --ink: #1b2124; --muted: #4f5a60; --faint: #6b767c; --line: #d3dadb; --line-strong: #b4bfc1;
-  --accent: #35604f; --accent-ink: #2b5142; --accent-wash: rgba(53, 96, 79, .08);
-  --success: #2b6a43; --warning: #765414; --warning-wash: rgba(118, 84, 20, .07); --error: #a1362b;
-  --syn-keyword: #2f5a8a; --syn-string: #2b6a43; --syn-number: #765414; --syn-title: #6a3f8f; --syn-type: #1f6b70; --syn-attr: #35604f; --syn-regexp: #a1362b;
-}
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html { scroll-behavior: smooth; scroll-padding-top: 72px; scrollbar-color: var(--line-strong) var(--bg); }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.7 var(--sans); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
-::selection { background: var(--accent); color: var(--paper); }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
-h1, h2, h3, h4, p, ul, ol, dl { margin: 0; }
-code { padding: 1px 5px; border-radius: 3px; background: var(--wash); font: .88em/1.5 var(--mono); overflow-wrap: anywhere; }
-button { font: inherit; color: inherit; }
-
-/* Chrome */
-.topbar { position: sticky; top: 0; z-index: 20; height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: saturate(1.2) blur(8px); border-bottom: 1px solid var(--line); font-size: 13px; }
-.topbar .doc { font-weight: 600; }
-.topbar .path { flex: 1; min-width: 0; color: var(--muted); font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.toggle { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
-.toggle:hover { color: var(--ink); border-color: var(--line-strong); }
-
-.layout { display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 48px; max-width: 1320px; margin: 0 auto; padding: 0 32px; }
-.toc { position: sticky; top: 52px; align-self: start; padding: 40px 0; font-size: 13px; }
-.toc a { display: block; padding: 5px 10px; border-radius: 4px; color: var(--muted); text-decoration: none; }
-.toc a:hover { color: var(--ink); }
-.toc a[aria-current="true"] { background: var(--wash); color: var(--ink); }
-main { min-width: 0; padding: 40px 0 72px; }
-
-/* Document */
-.head { padding-bottom: 28px; border-bottom: 1px solid var(--line); }
-.head h1 { font-size: 30px; line-height: 1.25; font-weight: 650; letter-spacing: -.02em; }
-.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; color: var(--muted); font-size: 13px; }
-.facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 18px; color: var(--muted); font-size: 13px; }
-.facts b { color: var(--ink); font-weight: 600; margin-right: 4px; }
-section.doc-section { padding-top: 48px; }
-.doc-section > h2 { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; font-size: 20px; font-weight: 650; letter-spacing: -.01em; }
-.doc-section > h2 small { color: var(--faint); font-size: 12.5px; font-weight: 400; letter-spacing: 0; }
-.lede { max-width: 72ch; margin-bottom: 18px; color: var(--muted); }
-h3 { font-size: 15px; font-weight: 600; }
-
-.badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
-.badge.ok { color: var(--success); border-color: color-mix(in srgb, var(--success) 55%, transparent); }
-.chip { display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--muted); font: 11.5px/1 var(--mono); white-space: nowrap; cursor: pointer; }
-.chip:hover, .chip.is-on { color: var(--accent-ink); border-color: var(--accent); }
-.chips { display: flex; flex-wrap: wrap; gap: 5px; }
-
-/* Glance */
-.glance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.card { padding: 16px 18px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
-.glance .card { display: grid; gap: 8px; align-content: start; }
-.glance .card p { font-size: 14px; }
-.glance .card.is-weak { border-color: color-mix(in srgb, var(--warning) 45%, transparent); background: var(--warning-wash); }
-.glance .card.is-weak h3 { color: var(--warning); }
-.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-.checks ol { margin: 0; padding-left: 20px; font-size: 14px; }
-.checks li + li { margin-top: 8px; }
-.checks li::marker { color: var(--faint); }
-.constraints { margin: 0; padding-left: 18px; font-size: 14px; }
-.constraints li + li { margin-top: 8px; }
-
-/* System map */
-.map-wrap { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow: hidden; }
-.map-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
-.map-bar .legend { display: inline-flex; align-items: center; gap: 6px; }
-.map-bar svg { width: 26px; height: 8px; }
-.map-bar .reset { margin-left: auto; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
-.map { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; padding: 0 12px; }
-.lane { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 22px; padding: 14px 18px 22px; }
-.lane + .lane { border-left: 1px dashed var(--line); }
-.lane-title { color: var(--faint); font: 11px/1.4 var(--mono); letter-spacing: .04em; }
-.node { width: 100%; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised); text-align: left; cursor: pointer; transition: opacity .18s ease, border-color .18s ease, background-color .18s ease; }
-.node b { display: block; font: 600 12.5px/1.45 var(--mono); overflow-wrap: break-word; }
-.node span { display: -webkit-box; margin-top: 3px; overflow: hidden; color: var(--faint); font-size: 12px; line-height: 1.45; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.node span code { padding: 0; background: none; font-size: 11.5px; }
-.node:hover { border-color: var(--accent); }
-.node.is-sel { border-color: var(--accent); background: var(--accent-wash); box-shadow: 0 0 0 1px var(--accent); }
-.node.is-rel { border-color: var(--accent); }
-.map.has-sel .node:not(.is-sel):not(.is-rel) { opacity: .32; }
-.edges { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.edges path { fill: none; stroke: var(--line-strong); stroke-width: 1.3; transition: stroke .18s ease, opacity .18s ease; }
-.edges path.dashed { stroke-dasharray: 4 4; }
-.edges text { fill: var(--faint); font: 10.5px var(--sans); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
-.edges .arrow { fill: var(--line-strong); }
-.edges .on path { stroke: var(--accent); stroke-width: 1.8; }
-.edges .on .arrow-head { fill: var(--accent); }
-.map.has-sel .edges g:not(.on) { opacity: .25; }
-.inspect { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; padding: 18px 20px 20px; border-top: 1px solid var(--line); min-height: 132px; }
-.inspect.is-empty { display: block; color: var(--muted); font-size: 13.5px; }
-.inspect h3 { font: 600 14px/1.4 var(--mono); }
-.inspect .role { margin-top: 4px; color: var(--muted); font-size: 14px; }
-.kv { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px 12px; margin-top: 14px; font-size: 13.5px; }
-.kv dt { color: var(--faint); font-size: 12.5px; }
-.kv dd { margin: 0; }
-.kv ul { margin: 0; padding: 0; list-style: none; }
-.kv li + li { margin-top: 4px; }
-.adr-links { display: grid; gap: 8px; }
-.adr-link { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: transparent; text-align: left; cursor: pointer; font-size: 13.5px; }
-.adr-link:hover { border-color: var(--accent); }
-.adr-link b { font: 600 12px/1.6 var(--mono); color: var(--accent-ink); }
-.adr-link span span { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-
-/* Decisions */
-.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th { padding: 10px 14px; background: var(--wash); color: var(--muted); font-size: 12px; font-weight: 600; text-align: left; white-space: nowrap; }
-td { padding: 12px 14px; border-top: 1px solid var(--line); vertical-align: top; }
-td.id { width: 78px; font: 600 12.5px/1.7 var(--mono); color: var(--accent-ink); white-space: nowrap; }
-.dec-row { cursor: pointer; }
-.dec-row:hover td { background: var(--accent-wash); }
-.dec-row .title { font-weight: 600; }
-.dec-row .sum { margin-top: 3px; color: var(--muted); font-size: 13.5px; }
-.dec-row .rej { color: var(--muted); font-size: 13px; }
-.dec-row .rej li { list-style: none; }
-.dec-row .rej li::before { content: "×"; margin-right: 6px; color: var(--faint); }
-.dec-row td.state { width: 96px; text-align: right; white-space: nowrap; }
-.caret { display: inline-block; width: 16px; color: var(--faint); transition: transform .18s ease; }
-.dec-row[aria-expanded="true"] .caret { transform: rotate(90deg); }
-.dec-row[aria-expanded="true"] td { background: var(--accent-wash); }
-.dec-detail td { padding: 0; background: var(--bg); }
-.dec-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; padding: 18px 20px 22px 92px; font-size: 14px; }
-.dec-body .full { grid-column: 1 / -1; }
-.dec-body h4 { margin-bottom: 6px; color: var(--faint); font-size: 12px; font-weight: 600; }
-.dec-body ul { margin: 0; padding-left: 18px; }
-.dec-body li + li { margin-top: 4px; }
-.pick { padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--success) 40%, transparent); border-radius: 6px; }
-.pick h4 { color: var(--success); }
-.drop { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; }
-.drop li b { font-weight: 600; }
-.drop li span { color: var(--muted); }
-.mini { width: 100%; font-size: 13px; }
-.mini td { padding: 6px 10px; }
-.mini td:first-child { white-space: nowrap; }
-
-/* Roadmap */
-.road { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; counter-reset: m; }
-.step { position: relative; display: grid; align-content: start; gap: 8px; padding: 14px 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); text-align: left; cursor: pointer; }
-.step:hover { border-color: var(--accent); }
-.step.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.step .mid { font: 600 12px/1 var(--mono); color: var(--accent-ink); }
-.step p { font-size: 13.5px; }
-.step .verify { padding-top: 8px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 12.5px; }
-
-/* Files, risks */
-.group-row td { padding: 8px 14px; background: var(--wash); color: var(--muted); font: 600 12px/1.4 var(--mono); }
-.path { font: 12.5px/1.6 var(--mono); }
-.files td:nth-child(2) { color: var(--muted); }
-
-/* Background */
-.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.cols ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; }
-.cols li + li { margin-top: 6px; }
-.cols .card.non h3 { color: var(--muted); }
-details.more { margin-top: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
-details.more > summary { padding: 12px 16px; cursor: pointer; font-size: 14px; font-weight: 600; list-style: none; }
-details.more > summary::-webkit-details-marker { display: none; }
-details.more > summary::before { content: "›"; display: inline-block; width: 16px; color: var(--faint); transition: transform .18s ease; }
-details.more[open] > summary::before { transform: rotate(90deg); }
-details.more > summary small { margin-left: 8px; color: var(--faint); font-weight: 400; }
-details.more > .inner { padding: 0 16px 16px; }
-.qa { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 10px; font-size: 13.5px; }
-.qa b { font: 600 12px/1.7 var(--mono); color: var(--faint); }
-.qa p span { color: var(--muted); }
-.qa > p + b, .qa > p + b + p { margin-top: 6px; }
-
-footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12.5px; }
-.note { color: var(--faint); font-size: 12px; }
-
-@media (max-width: 1180px) {
-  .layout { grid-template-columns: minmax(0, 1fr); padding: 0 24px; }
-  .toc { display: none; }
-  .glance { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 900px) {
-  .map { grid-template-columns: 1fr 1fr; }
-  .lane:nth-child(odd of .lane) { border-left: 0; }
-  .edges { display: none; }
-  .road { grid-template-columns: 1fr; }
-  .dec-body { grid-template-columns: 1fr; padding-left: 20px; }
-}
-@media (max-width: 640px) {
-  .layout { padding: 0 16px; }
-  .topbar { padding: 0 16px; }
-  .head h1 { font-size: 24px; }
-  .glance, .checks, .cols, .inspect { grid-template-columns: 1fr; }
-  .map { grid-template-columns: 1fr; }
-  .lane + .lane { border-left: 0; border-top: 1px dashed var(--line); }
-  .dec-row td.state, th.state { display: none; }
-  td.id { width: 64px; }
-}
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
-figure.derived { margin: 0; }
-.context { display: grid; gap: 14px; max-width: 75ch; margin-bottom: 18px; }
-pre.code { margin: 0; padding: 12px 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font: 12.5px/1.6 var(--mono); tab-size: 2; }
-pre.code code { padding: 0; background: none; font: inherit; overflow-wrap: normal; }
-pre.code + pre.code { margin-top: 8px; }
-/* highlight.js tokens; colors come from --syn-* so both themes follow the palette */
-.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-operator { color: var(--syn-keyword); }
-.hljs-string, .hljs-template-string, .hljs-addition, .hljs-selector-attr { color: var(--syn-string); }
-.hljs-number, .hljs-literal, .hljs-symbol, .hljs-variable.constant_, .hljs-bullet { color: var(--syn-number); }
-.hljs-title, .hljs-section, .hljs-name, .hljs-selector-id, .hljs-selector-class { color: var(--syn-title); }
-.hljs-type, .hljs-class .hljs-title, .hljs-title.class_ { color: var(--syn-type); }
-.hljs-attr, .hljs-attribute, .hljs-property, .hljs-params, .hljs-variable, .hljs-template-variable, .hljs-tag { color: var(--syn-attr); }
-.hljs-regexp, .hljs-deletion, .hljs-link { color: var(--syn-regexp); }
-.hljs-comment, .hljs-quote, .hljs-meta, .hljs-doctag { color: var(--muted); font-style: italic; }
-.hljs-emphasis { font-style: italic; } .hljs-strong { font-weight: 600; }
-</style>
-
-<!--
-  Reference sample for writing-dev-plans visual documents (see references/visual-guide.md).
-  Borrow the palette, type, density, components, and interaction patterns; do not copy its section list.
-  Your page follows your source: every unit carries data-src, sections this sample lacks get their own design.
--->
+<title>数据分析：前端按需查询聚合数据并出图 · Plan</title>
 <script type="application/json" id="plan-source">{}</script>
+<style>
+.checks-title { margin-top: 22px; color: var(--faint); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+.g-arch { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+.card .alt::before { content: "另一种："; color: var(--faint); }
+.diagram.wide svg { min-width: 640px; }
+.anat { display: grid; gap: 8px; }
+.anat div { display: grid; grid-template-columns: 104px 1fr; gap: 10px; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--accent-wash); border-radius: 0 6px 6px 0; font-size: 13.5px; }
+.anat b { font: 600 12.5px/1.6 var(--mono); color: var(--accent-ink); }
+.matrix th, .matrix td { text-align: center; }
+.matrix tbody th, .matrix tfoot th { text-align: left; background: transparent; color: var(--ink); font-weight: 500; }
+.matrix td.on { color: var(--success); font-size: 15px; }
+.matrix td.off { color: var(--line-strong); }
+.matrix tfoot td, .matrix tfoot th { color: var(--muted); font-size: 12.5px; border-top: 2px solid var(--line); }
+.shapes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.shape { display: grid; gap: 6px; align-content: start; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-size: 12.5px; }
+.shape svg { width: 40px; height: 36px; }
+.shape b { font-size: 13.5px; }
+.shape .w { color: var(--muted); }
+.g { fill: var(--accent); opacity: .75; }
+.g-num { fill: var(--accent); font: 700 22px var(--sans); }
+.g-line { fill: none; stroke: var(--accent); stroke-width: 2.2; }
+.g-2 { stroke: var(--warning); }
+.nope { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.nope span { padding: 2px 8px; border: 1px dashed var(--line-strong); border-radius: 4px; }
+.nope span::before { content: "✕ "; color: var(--error); }
+.ruler, .perf { width: 100%; height: auto; display: block; }
+.ruler { max-width: 720px; margin: 0 auto; }
+.warn-band { fill: var(--warning-wash); stroke: color-mix(in srgb, var(--warning) 45%, transparent); stroke-dasharray: 4 3; }
+.bar-local { fill: var(--accent-wash); stroke: var(--accent); }
+.bar-utc { fill: var(--wash); stroke: var(--line-strong); }
+.edge { stroke: var(--warning); stroke-width: 1.5; }
+.t-lab { fill: var(--muted); font: 12px var(--sans); }
+.t-bar { fill: var(--ink); font: 12px var(--sans); }
+.t-warn { fill: var(--warning); font: 600 12px var(--sans); }
+.t-code { fill: var(--ink); font: 11.5px var(--mono); }
+.t-note { fill: var(--muted); font: 11.5px var(--sans); }
+.t-val { fill: var(--ink); font: 12px var(--mono); }
+.bar-ok { fill: var(--accent); opacity: .8; }
+.bar-over { fill: var(--warning); opacity: .85; }
+.budget { stroke: var(--error); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.step.weak .mid::after { content: " · 最弱的一环"; color: var(--warning); font-family: var(--sans); font-weight: 600; }
+.datamap td:first-child { width: 30%; }
+.qa { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.qa .card p.a { color: var(--success); font-weight: 600; }
+.qa + details.more { margin-top: 10px; }
+@media (max-width: 1180px) { .shapes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .shapes, .qa { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
 <header class="topbar">
-  <span class="doc">Plan Viewer · Plan</span>
-  <span class="path">.plans/2026-11-10-plan-viewer/plan.md</span>
-  <button class="toggle" type="button" id="theme">浅色</button>
+  <span class="doc">数据分析：前端按需查询聚合数据并出图</span>
+  <span class="path">.plans/2026-11-11-analytics/plan.md</span>
+  <button class="btn" type="button" data-theme-toggle></button>
 </header>
 <div class="layout">
-  <nav class="toc" aria-label="目录">
-    <a href="#overview">概要</a><a href="#architecture">架构</a><a href="#decisions">决策</a><a href="#roadmap">路线</a><a href="#files">文件</a><a href="#risks">风险</a><a href="#background">背景</a>
-  </nav>
-  <main id="doc">
-  <header class="head" data-src="header">
-    <h1>Plan Viewer · Plan</h1>
-    <div class="meta"><span class="badge ok">aligned</span><span>2026-11-10</span><span>实现：<code>./impl.md</code></span></div>
-    <div class="facts"><span><b>10</b>决策</span><span><b>14</b>组件</span><span><b>17</b>文件</span><span><b>5</b>里程碑</span><span><b>8</b>风险</span><span><b>9/9</b>问题已决</span></div>
-  </header>
+<nav class="toc" aria-label="目录">
+  <a href="#overview">总览</a>
+  <a href="#architecture">架构</a>
+  <a href="#query" class="sub">一次查询</a>
+  <a href="#shape" class="sub">查询结构</a>
+  <a href="#timezone" class="sub">时区分桶</a>
+  <a href="#launch" class="sub">应用打开</a>
+  <a href="#decisions">决策</a>
+  <a href="#datasets">数据集</a>
+  <a href="#roadmap">路线</a>
+  <a href="#risks">风险</a>
+  <a href="#background">背景</a>
+</nav>
+<main>
 
-  <section class="doc-section" id="overview">
-    <h2>概要</h2>
-    <div class="glance" data-src="sec:at-a-glance"><article class="card"><h3>三个组件</h3><p>固定的 <code>index.html</code>（全部方案列表）、固定的 <code>project.html</code>（单个方案的 app shell：结构化的方案、实现、进度）、agent 按方案生成的 <code>visual-plan.html</code> / <code>visual-impl.html</code></p><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button></div></article><article class="card"><h3>向后兼容</h3><p>固定页面宽容解析，认不出的块或整篇显示原文 md，不报错</p><div class="chips"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button></div></article><article class="card"><h3>可视化文档保真</h3><p>可以重组、突出、画图，但不能丢信息；用 <code>data-src</code> 标记 + 脚本检查覆盖率</p><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button><button class="chip" type="button" data-adr="ADR-7">ADR-7</button></div></article><article class="card"><h3>过时由脚本判定</h3><p>HTML 内嵌 md 的 <code>version_hash</code> 与逐单元哈希；<code>visual-status.mjs</code> 报告哪些单元变了，gate 前必须同步到 fresh</p><div class="chips"><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></article><article class="card"><h3>两个询问点</h3><p><code>plan.md</code> 首稿完成后问是否生成 visual（同意则 visual-impl 在 impl 首稿时自动生成）；执行开始前问是否打开进度页</p><div class="chips"><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></div></article><article class="card is-weak"><h3>最弱环节</h3><p>哈希只能证明"覆盖了、且基于最新 md 盖章"，不能证明改写忠实；措辞忠实度仍要人看</p></article></div>
-    <div class="checks">
-      <article class="card" data-src="header"><h3>成功检查</h3><ol style="margin-top:10px"><li>浏览器打开 <code>/</code> 列出 <code>.plans/</code> 下全部方案</li><li><code>/p/&lt;dir&gt;</code> 显示该方案的 Plan / Impl / Progress，改 <code>impl.md</code> 或新增 <code>runs/T1-1/handoff.md</code> 后 ≤1s 自动刷新；旧格式或无法解析的部分显示原文</li><li>subagent 按指南生成 <code>visual-plan.html</code>，<code>visual-status.mjs --stamp</code> 通过保真检查并写入哈希，在 Visual 标签页和 <code>file://</code> 都能正常显示</li><li>修改 <code>plan.md</code> 中一个 ADR 后，<code>visual-status.mjs</code> 报告 stale 并列出该 ADR、退出码 1，shell 显示"已过时"；只改任务状态或追加日志时仍为 fresh</li></ol></article>
-      <article class="card" data-src="sec:constraints"><h3>约束</h3><ul class="constraints" style="margin-top:10px"><li>零 npm 依赖、无构建步骤：<code>scripts/</code> 下是手写的 ESM <code>.mjs</code>，只用 Node 标准库；前端库走 CDN（jsDelivr，锁大版本，URL 已验证可访问） <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-10">ADR-10</button></span></li><li>Node ≥ 20（<code>fs.watch</code> recursive 在 Linux 需 20+；本机 v22.23.2）；lint 因此也依赖 Node</li><li>只读：server 不写任何文件（<code>.viewer.json</code> 除外），只绑定 127.0.0.1 <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></span></li><li>md 是唯一事实来源；visual 文档是派生物，与 md 冲突时以 md 为准</li><li>解析只锚定 Fixed 追踪标记，不依赖可被翻译的章节标题 <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button></span></li></ul></article>
+<section class="head" id="overview">
+  <h1>数据分析：前端按需查询聚合数据并出图</h1>
+  <div class="meta"><span class="pill ok">aligned</span><span>2026-11-11</span><span>实现：<code>./impl.md</code></span><button class="src-link" type="button" data-open="header">头部原文</button></div>
+  <div class="facts"><div><b>8</b><span>决策</span></div><div><b>4</b><span>方案选项</span></div><div><b>7</b><span>数据集</span></div><div><b>4</b><span>里程碑</span></div><div><b>8</b><span>风险</span></div><div><b>3/3</b><span>已回答问题</span></div></div>
+  <p class="label" style="margin-top:22px">完成标准</p>
+  <ul class="checks"><li><span>管理员首页的三个组件（近 7 日登录人数、近 30 天打开次数最多的 5 个应用、近 7 日每日活跃人数）各自只发一个 <code>POST /api/admin/analytics/query</code>，数据来自真实表</span></li><li><span>在真实 Launchpad 上点开一个应用后，「前 5 应用」的计数加一</span></li><li><span><code>pytest</code> 中同一批固定数据得到确定的数字，包括 UTC+8 的日界</span></li></ul>
+</section>
+
+<section class="sec" id="glance">
+  <h2>要点 <small>At a Glance</small></h2>
+  <div class="grid g3">
+    <article class="card"><h3>查询形式用 JSON 语义查询，不用类 SQL。</h3><p>服务端用 SQLAlchemy 白名单编译。</p><p class="alt">类 SQL 文本查询：要写解析器，攻击面更大，TS 也拿不到类型，而且最后同样要白名单。</p><span class="chips"><button class="chip" type="button" data-open="ADR-7">ADR-7</button><button class="chip" type="button" data-open="ADR-1">ADR-1</button></span></article><article class="card"><h3>应用使用量要新增数据。</h3><p>Launchpad 经 <code>GET /api/launchpad/{id}/open</code> 跳转并写 <code>application_launch</code> 表。</p><p class="alt">前端打点（beacon），会在页面跳走时丢数据。</p><span class="chips"><button class="chip" type="button" data-open="ADR-3">ADR-3</button></span></article><article class="card"><h3>按天分桶需要时区。</h3><p>服务端在 Python 里算好每个桶的 UTC 边界再查询。</p><p class="alt">按 UTC 分桶会把北京时间 0–8 点算进前一天。</p><span class="chips"><button class="chip" type="button" data-open="ADR-4">ADR-4</button></span></article>
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    <article class="card weak"><h3>最弱的一环：打开记录的前置工作。</h3><p>生产 Launchpad 现在整页都是 mock 数据，所以要先接上已有的 <code>GET /api/launchpad</code>，再记录打开。这一步让第 2 阶段比看上去大。</p><span class="chips"><button class="chip" type="button" data-open="M2">M2</button><button class="chip" type="button" data-open="ADR-3">ADR-3</button></span></article>
+    <article class="card"><h3>一年范围的去重人数较慢。</h3><svg class="perf" viewBox="0 0 400 128" role="img" aria-label="按天去重人数：7 天 88 ms，90 天 656 ms，365 天 2.7 s；预算 90 天以内 1 s">
+  <text x="80" y="26" text-anchor="end" class="t-lab">7 天</text><rect x="90" y="13" width="8.474074074074068" height="18" rx="3" class="bar-ok"/><text x="104.47407407407407" y="26" class="t-val">88 ms</text><text x="80" y="56" text-anchor="end" class="t-lab">90 天</text><rect x="90" y="43" width="63.170370370370364" height="18" rx="3" class="bar-ok"/><text x="159.17037037037036" y="56" class="t-val">656 ms</text><text x="80" y="86" text-anchor="end" class="t-lab">365 天</text><rect x="90" y="73" width="260" height="18" rx="3" class="bar-over"/><text x="356" y="86" class="t-val">2.7 s</text>
+  <line x1="186.2962962962963" y1="6" x2="186.2962962962963" y2="104" class="budget"/>
+  <text x="186.2962962962963" y="120" text-anchor="middle" class="t-note">预算：90 天以内 1 s</text>
+</svg><p class="alt" style="margin-top:-4px">先接受，超预算再做预聚合。</p><span class="chips"><button class="chip" type="button" data-open="ADR-2">ADR-2</button></span></article>
+    <article class="card"><h3>已确认</h3><ul style="margin:0;padding-left:18px;font-size:13.5px"><li>登录成功 + 应用内 SSO 登录 + 打开应用</li><li>仅管理员和 Owner，只看聚合</li><li>400 天，加 CLI 清理命令</li></ul><p class="alt" style="--x:0">活跃 = 三类事件；仅管理员看聚合；打开记录保留 400 天。</p><button class="src-link" type="button" data-open="glance">要点原文</button></article>
+  </div>
+</section>
+
+<section class="sec" id="architecture">
+  <h2>架构 <small>点击节点查看相关决策与里程碑</small></h2>
+  <p class="lede">分析做成可选插件 <code>plugins/analytics/</code>（ADR-8），只读核心的表，不写任何数据，也不建表；打开应用的记录、<code>/open</code> 跳转和 Launchpad 接真实接口都在核心（<code>access</code> 领域）。</p>
+  <figure class="fig"><figcaption><b>组件与数据流</b><span class="tag">由原文整理</span><button class="src-link" type="button" data-open="src-1">原文</button></figcaption><div class="diagram" data-links="W:node-W R:node-R S:node-S C:node-C B:node-B DB:node-DB L:node-L A:node-A APP:node-APP" role="img" aria-label="架构图"><pre class="mermaid">flowchart TB
+  W[&quot;前端组件&lt;br/&gt;useAnalytics(query)&quot;] --&gt;|&quot;POST /api/admin/analytics/query&quot;| R[&quot;plugins/analytics/router.py&quot;]
+  R --&gt; S[&quot;plugins.analytics.service.run&quot;]
+  S --&gt; C[&quot;catalogue：数据集定义&quot;]
+  S --&gt; B[&quot;buckets：时区边界&quot;]
+  S --&gt;|&quot;SQLAlchemy Core&quot;| DB[(&quot;audit_record&lt;br/&gt;application_launch&lt;br/&gt;user_account / application&quot;)]
+  L[&quot;Launchpad 卡片&quot;] --&gt;|&quot;GET /api/launchpad/{id}/open&quot;| A[&quot;access.service.record_launch&quot;] --&gt; DB
+  A --&gt;|&quot;302&quot;| APP[&quot;应用 URL&quot;]</pre></div><p class="hint">节点、连线与标签同原文 Architecture；原文 mermaid 有语法错误（<code>[ ]</code> 内的 <code>(query)</code> 未加引号），此处加了引号。</p><details class="more" style="margin:0 16px 14px"><summary>原文 mermaid</summary><div class="inner"><pre class="code"><code class="language-plaintext">flowchart LR
+  W[前端组件&lt;br/&gt;useAnalytics(query)] --&gt;|POST /api/admin/analytics/query| R[plugins/analytics/router.py]
+  R --&gt; S[plugins.analytics.service.run]
+  S --&gt; C[catalogue：数据集定义]
+  S --&gt; B[buckets：时区边界]
+  S --&gt;|SQLAlchemy Core| DB[(audit_record&lt;br/&gt;application_launch&lt;br/&gt;user_account / application)]
+  L[Launchpad 卡片] --&gt;|GET /api/launchpad/{id}/open| A[access.service.record_launch] --&gt; DB
+  A --&gt;|302| APP[应用 URL]</code></pre></div></details></figure>
+    <div class="grid g2" style="margin-top:14px">
+      <figure class="fig"><figcaption><b>插件文件</b></figcaption><div class="pad"><div class="chips"><code>manifest.yaml</code><code>catalogue.py</code><code>entities.py</code><code>service.py</code><code>exc.py</code><code>router.py</code></div><p style="margin-top:10px;font-size:13px;color:var(--muted)"><code>depends_on: [one_portal]</code>，通过 <code>ONE_PORTAL_PLUGINS</code> 启用；未启用时前端显示「未启用数据分析」。</p><span class="chips"><button class="chip" type="button" data-open="ADR-8">ADR-8</button></span></div></figure>
+      <figure class="fig"><figcaption><b>前端</b></figcaption><div class="pad"><div data-src='前端'></div></div></figure>
     </div>
-  </section>
+</section>
 
-  <section class="doc-section" id="architecture" data-src="sec:architecture">
-    <h2>架构 <small>点击组件查看相关决策、文件与里程碑</small></h2>
-    <div class="map-wrap">
-      <div class="map-bar">
-        <span class="legend"><svg viewBox="0 0 26 8"><path d="M0 4H26" stroke="currentColor" stroke-width="1.3"></path></svg>数据流</span>
-        <span class="legend"><svg viewBox="0 0 26 8"><path d="M0 4H26" stroke="currentColor" stroke-width="1.3" stroke-dasharray="4 4"></path></svg>共享模块</span>
-        <span class="note">组件与决策的关系由方案文本整理</span>
-        <button class="reset" type="button" id="reset" hidden="">清除选择</button>
-      </div>
-      <div class="map" id="map">
-        <svg class="edges" id="edges" aria-hidden="true"><defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0L8 4L0 8z"></path></marker><marker id="ah-on" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow arrow-head" d="M0 0L8 4L0 8z"></path></marker></defs><g data-from="agent" data-to="plans-dir" data-label="写入"></g><g data-from="parser" data-to="lint" data-dashed=""></g><g data-from="parser" data-to="visual-status" data-dashed=""></g><g data-from="parser" data-to="server" data-dashed=""></g><g data-from="plans-dir" data-to="visual-status"></g><g data-from="plans-dir" data-to="lint"></g><g data-from="plans-dir" data-to="server" data-label="fs.watch + 防抖"></g><g data-from="server" data-to="index"></g><g data-from="server" data-to="project"></g><g data-from="project" data-to="visual-doc" data-label="iframe"></g></svg>
-        <div class="lane"><div class="lane-title">agent · .plans</div><button class="node" type="button" data-comp="agent"><b>Agent</b><span>写 plan.md / impl.md；subagent 写 runs/Tn-k/；subagent 生成 visual-*.html（模板 + 指南）</span></button><button class="node" type="button" data-comp="plans-dir"><b>.plans/date-slug/</b><span>方案目录：plan.md、impl.md、runs/、visual-*.html</span></button></div><div class="lane"><div class="lane-title">lib · cli</div><button class="node" type="button" data-comp="parser"><b>lib/parse-plan.mjs</b><span>宽容解析，返回 {format, blocks}，从不抛错</span></button><button class="node" type="button" data-comp="lint"><b>lint-plan.mjs</b><span>md 格式检查，规则按 format 生效</span></button><button class="node" type="button" data-comp="visual-status"><b>visual-status.mjs</b><span>保真 · 过时 · --stamp</span></button><button class="node" type="button" data-comp="hash"><b>lib/source-hash.mjs</b><span>规范化 md，计算 version_hash 与逐单元哈希</span></button></div><div class="lane"><div class="lane-title">server</div><button class="node" type="button" data-comp="server"><b>plan-viewer.mjs</b><span>HTTP · SSE；一个 worktree 一个 server</span></button></div><div class="lane"><div class="lane-title">page</div><button class="node" type="button" data-comp="index"><b>index.html</b><span>全部方案</span></button><button class="node" type="button" data-comp="project"><b>project.html</b><span>Plan · Impl · Progress · Visual</span></button><button class="node" type="button" data-comp="visual-doc"><b>visual-plan.html / visual-impl.html</b><span>agent 生成，iframe 嵌入</span></button></div><div class="lane"><div class="lane-title">skill</div><button class="node" type="button" data-comp="visual-template"><b>visual-template.html</b><span>visual 文档骨架与组件</span></button><button class="node" type="button" data-comp="visual-guide"><b>visual-guide.md</b><span>生成指南：顺序、映射、保真、页脚</span></button><button class="node" type="button" data-comp="templates"><b>templates/</b><span>模板 frontmatter 与 At a Glance</span></button><button class="node" type="button" data-comp="skill-md"><b>SKILL.md · viewer.md</b><span>询问流程、lint 自检、gate 前重新生成 visual</span></button></div>
-      </div>
-      <div class="inspect is-empty" data-inspect="">未选择组件。</div>
-<div class="inspect" data-inspect="comp:agent" hidden=""><div><h3>Agent</h3><p class="role">写 plan.md / impl.md；subagent 写 runs/Tn-k/；subagent 生成 visual-*.html（模板 + 指南）</p><dl class="kv"><dt>文件</dt><dd>—</dd><dt>里程碑</dt><dd>—</dd><dt>风险</dt><dd><ul><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-6"><b>ADR-6</b><span>visual 文档 = 模板 + 组件库 + 生成指南<span>模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</span></span></button><button class="adr-link" type="button" data-adr="ADR-9"><b>ADR-9</b><span>询问流程<span>两个询问点：<code>plan.md</code> 首稿后问是否生成 visual；执行开始前问是否打开进度页</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:plans-dir" hidden=""><div><h3>.plans/date-slug/</h3><p class="role">方案目录：plan.md、impl.md、runs/、visual-*.html</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>.plans/&lt;dir&gt;/</code></li></ul></dd><dt>里程碑</dt><dd>—</dd><dt>风险</dt><dd>—</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-1"><b>ADR-1</b><span>三组件划分，固定页面读 md，visual 文档由 agent 生成<span>固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:parser" hidden=""><div><h3>lib/parse-plan.mjs</h3><p class="role">宽容解析，返回 {format, blocks}，从不抛错</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/lib/parse-plan.mjs</code></li></ul></dd><dt>里程碑</dt><dd><b>M1</b> · format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</dd><dt>风险</dt><dd><ul><li>改了 Fixed 却忘了 bump format</li><li>环境没有 Node</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-2"><b>ADR-2</b><span>固定页面宽容解析，按块降级显示原文<span>解析模块从不抛错，认不出的块显示原文；整篇识别失败时整篇显示原文</span></span></button><button class="adr-link" type="button" data-adr="ADR-3"><b>ADR-3</b><span>lint 只查一个方案，规则按格式版本生效<span><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</span></span></button><button class="adr-link" type="button" data-adr="ADR-10"><b>ADR-10</b><span>手写 ESM，不引入 npm 包与构建<span><code>scripts/*.mjs</code> 直接手写为最终产物，不设 <code>packages/</code>、不打包</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:hash" hidden=""><div><h3>lib/source-hash.mjs</h3><p class="role">规范化 md，计算 version_hash 与逐单元哈希</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/lib/source-hash.mjs</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>visual 文档过时</li><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-8"><b>ADR-8</b><span>version_hash + 脚本判定过时，gate 前强制同步<span><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:lint" hidden=""><div><h3>lint-plan.mjs</h3><p class="role">md 格式检查，规则按 format 生效</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/lint-plan.mjs</code></li></ul></dd><dt>里程碑</dt><dd><b>M1</b> · format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</dd><dt>风险</dt><dd><ul><li>改了 Fixed 却忘了 bump format</li><li>环境没有 Node</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-3"><b>ADR-3</b><span>lint 只查一个方案，规则按格式版本生效<span><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:visual-status" hidden=""><div><h3>visual-status.mjs</h3><p class="role">保真 · 过时 · --stamp</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/visual-status.mjs</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>visual 文档漏掉约束或风险，用户据此确认</li><li>visual 文档过时</li><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-7"><b>ADR-7</b><span>保真检查脚本<span><code>visual-status.mjs</code> 比对 md 单元与 <code>data-src</code>：缺失 → error</span></span></button><button class="adr-link" type="button" data-adr="ADR-8"><b>ADR-8</b><span>version_hash + 脚本判定过时，gate 前强制同步<span><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:server" hidden=""><div><h3>plan-viewer.mjs</h3><p class="role">HTTP · SSE；一个 worktree 一个 server</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>scripts/plan-viewer.mjs</code></li><li><code>.plans/.viewer.json</code></li></ul></dd><dt>里程碑</dt><dd><b>M2</b> · 旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</dd><dt>风险</dt><dd><ul><li>宿主回收后台进程</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-4"><b>ADR-4</b><span>一个 worktree 一个 server，SSE 推送<span>一个 <code>.plans/</code> 一个 server，按 <code>.viewer.json</code> 复用；SSE 推送，200ms 防抖</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:index" hidden=""><div><h3>index.html</h3><p class="role">全部方案</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>assets/index.html</code></li></ul></dd><dt>里程碑</dt><dd><b>M2</b> · 旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</dd><dt>风险</dt><dd><ul><li>md 或 visual 中的 HTML 注入</li><li>CDN 不可用</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-1"><b>ADR-1</b><span>三组件划分，固定页面读 md，visual 文档由 agent 生成<span>固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</span></span></button><button class="adr-link" type="button" data-adr="ADR-5"><b>ADR-5</b><span>固定页面的版式与图表<span>手写亮色/暗色 CSS 变量，同时供页面、mermaid、Cytoscape 使用</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:project" hidden=""><div><h3>project.html</h3><p class="role">Plan · Impl · Progress · Visual</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>assets/project.html</code></li></ul></dd><dt>里程碑</dt><dd><b>M2</b> · 旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</dd><dt>风险</dt><dd><ul><li>visual 文档过时</li><li>生成 visual 消耗大量 token</li><li>md 或 visual 中的 HTML 注入</li><li>CDN 不可用</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-1"><b>ADR-1</b><span>三组件划分，固定页面读 md，visual 文档由 agent 生成<span>固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</span></span></button><button class="adr-link" type="button" data-adr="ADR-2"><b>ADR-2</b><span>固定页面宽容解析，按块降级显示原文<span>解析模块从不抛错，认不出的块显示原文；整篇识别失败时整篇显示原文</span></span></button><button class="adr-link" type="button" data-adr="ADR-5"><b>ADR-5</b><span>固定页面的版式与图表<span>手写亮色/暗色 CSS 变量，同时供页面、mermaid、Cytoscape 使用</span></span></button><button class="adr-link" type="button" data-adr="ADR-8"><b>ADR-8</b><span>version_hash + 脚本判定过时，gate 前强制同步<span><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:visual-doc" hidden=""><div><h3>visual-plan.html / visual-impl.html</h3><p class="role">agent 生成，iframe 嵌入</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>.plans/&lt;dir&gt;/visual-plan.html</code></li><li><code>.plans/&lt;dir&gt;/visual-impl.html</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-1"><b>ADR-1</b><span>三组件划分，固定页面读 md，visual 文档由 agent 生成<span>固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</span></span></button><button class="adr-link" type="button" data-adr="ADR-6"><b>ADR-6</b><span>visual 文档 = 模板 + 组件库 + 生成指南<span>模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:visual-template" hidden=""><div><h3>visual-template.html</h3><p class="role">visual 文档骨架与组件</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>assets/visual-template.html</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-6"><b>ADR-6</b><span>visual 文档 = 模板 + 组件库 + 生成指南<span>模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:visual-guide" hidden=""><div><h3>visual-guide.md</h3><p class="role">生成指南：顺序、映射、保真、页脚</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>references/visual-guide.md</code></li></ul></dd><dt>里程碑</dt><dd><b>M4</b> · 用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd><dt>风险</dt><dd><ul><li>生成 visual 消耗大量 token</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-6"><b>ADR-6</b><span>visual 文档 = 模板 + 组件库 + 生成指南<span>模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:templates" hidden=""><div><h3>templates/</h3><p class="role">模板 frontmatter 与 At a Glance</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>templates/plan.md</code></li><li><code>templates/impl.md</code></li></ul></dd><dt>里程碑</dt><dd><b>M1</b> · format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</dd><dt>风险</dt><dd><ul><li>改了 Fixed 却忘了 bump format</li><li>环境没有 Node</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-3"><b>ADR-3</b><span>lint 只查一个方案，规则按格式版本生效<span><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</span></span></button></div></div></div>
-<div class="inspect" data-inspect="comp:skill-md" hidden=""><div><h3>SKILL.md · viewer.md</h3><p class="role">询问流程、lint 自检、gate 前重新生成 visual</p><dl class="kv"><dt>文件</dt><dd><ul><li><code>SKILL.md</code></li><li><code>references/viewer.md</code></li></ul></dd><dt>里程碑</dt><dd><b>M5</b> · 端到端走一遍 gate</dd><dt>风险</dt><dd><ul><li>visual 文档过时</li><li>改了 Fixed 却忘了 bump format</li><li>生成 visual 消耗大量 token</li><li>环境没有 Node</li></ul></dd></dl></div><div><h4 class="note" style="margin-bottom:8px">约束它的决策</h4><div class="adr-links"><button class="adr-link" type="button" data-adr="ADR-3"><b>ADR-3</b><span>lint 只查一个方案，规则按格式版本生效<span><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</span></span></button><button class="adr-link" type="button" data-adr="ADR-8"><b>ADR-8</b><span>version_hash + 脚本判定过时，gate 前强制同步<span><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</span></span></button><button class="adr-link" type="button" data-adr="ADR-9"><b>ADR-9</b><span>询问流程<span>两个询问点：<code>plan.md</code> 首稿后问是否生成 visual；执行开始前问是否打开进度页</span></span></button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-1" hidden=""><div><h3>ADR-1 · 三组件划分，固定页面读 md，visual 文档由 agent 生成</h3><p class="role">固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="index">index.html</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button><button class="chip is-on" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button><button class="chip is-on" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-2" hidden=""><div><h3>ADR-2 · 固定页面宽容解析，按块降级显示原文</h3><p class="role">解析模块从不抛错，认不出的块显示原文；整篇识别失败时整篇显示原文</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-3" hidden=""><div><h3>ADR-3 · lint 只查一个方案，规则按格式版本生效</h3><p class="role"><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="templates">templates/</button><button class="chip is-on" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-4" hidden=""><div><h3>ADR-4 · 一个 worktree 一个 server，SSE 推送</h3><p class="role">一个 <code>.plans/</code> 一个 server，按 <code>.viewer.json</code> 复用；SSE 推送，200ms 防抖</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-5" hidden=""><div><h3>ADR-5 · 固定页面的版式与图表</h3><p class="role">手写亮色/暗色 CSS 变量，同时供页面、mermaid、Cytoscape 使用</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="index">index.html</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-6" hidden=""><div><h3>ADR-6 · visual 文档 = 模板 + 组件库 + 生成指南</h3><p class="role">模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="visual-template">visual-template.html</button><button class="chip is-on" type="button" data-comp-chip="visual-guide">visual-guide.md</button><button class="chip is-on" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-7" hidden=""><div><h3>ADR-7 · 保真检查脚本</h3><p class="role"><code>visual-status.mjs</code> 比对 md 单元与 <code>data-src</code>：缺失 → error</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="visual-status">visual-status.mjs</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-8" hidden=""><div><h3>ADR-8 · version_hash + 脚本判定过时，gate 前强制同步</h3><p class="role"><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip is-on" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-9" hidden=""><div><h3>ADR-9 · 询问流程</h3><p class="role">两个询问点：<code>plan.md</code> 首稿后问是否生成 visual；执行开始前问是否打开进度页</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div></div>
-<div class="inspect" data-inspect="adr:ADR-10" hidden=""><div><h3>ADR-10 · 手写 ESM，不引入 npm 包与构建</h3><p class="role"><code>scripts/*.mjs</code> 直接手写为最终产物，不设 <code>packages/</code>、不打包</p></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip is-on" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip is-on" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div></div>
-<div class="inspect" data-inspect="ms:M1" hidden=""><div><h3>M1</h3><p class="role">解析器（结构化块 + raw 降级）+ lint（since 规则）+ 模板 frontmatter + fixture</p><dl class="kv"><dt>验证</dt><dd>format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip is-on" type="button" data-comp-chip="templates">templates/</button></div></div></div>
-<div class="inspect" data-inspect="ms:M2" hidden=""><div><h3>M2</h3><p class="role">server + <code>index.html</code> + <code>project.html</code> 的 Plan / Impl 标签页</p><dl class="kv"><dt>验证</dt><dd>旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="server">plan-viewer.mjs</button><button class="chip is-on" type="button" data-comp-chip="index">index.html</button><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
-<div class="inspect" data-inspect="ms:M3" hidden=""><div><h3>M3</h3><p class="role">Progress 标签页</p><dl class="kv"><dt>验证</dt><dd>inline 与 subagent fixture 各一，run 卡片与依赖图正确</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="project">project.html</button></div></div></div>
-<div class="inspect" data-inspect="ms:M4" hidden=""><div><h3>M4</h3><p class="role"><code>visual-template.html</code> + <code>visual-guide.md</code> + <code>visual-status.mjs</code>（保真、过时、<code>--stamp</code>）</p><dl class="kv"><dt>验证</dt><dd>用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="visual-template">visual-template.html</button><button class="chip is-on" type="button" data-comp-chip="visual-guide">visual-guide.md</button><button class="chip is-on" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip is-on" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip is-on" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button></div></div></div>
-<div class="inspect" data-inspect="ms:M5" hidden=""><div><h3>M5</h3><p class="role">接入 skill：模板 At a Glance 与 frontmatter、<code>SKILL.md</code>（询问流程、lint 自检、gate 前重新生成 visual）、<code>references/viewer.md</code></p><dl class="kv"><dt>验证</dt><dd>端到端走一遍 gate</dd></dl></div><div><h4 class="note" style="margin-bottom:8px">涉及组件</h4><div class="chips"><button class="chip is-on" type="button" data-comp-chip="templates">templates/</button><button class="chip is-on" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div></div>
-    </div>
-  </section>
+<section class="sec" id="query">
+  <h2>一次查询怎么走</h2>
+  <p class="lede">前端只发一个 <code>POST /api/admin/analytics/query</code>；权限、校验、分桶都在服务端完成。</p>
+  <figure class="fig"><figcaption><b>查询请求的路径</b><span class="tag">由原文整理</span></figcaption><div class="diagram" role="img" aria-label="查询请求的时序图"><pre class="mermaid">sequenceDiagram
+  participant FE as 前端组件
+  participant R as router.py
+  participant S as service.run
+  participant DB as 业务表
+  FE-&gt;&gt;R: POST /api/admin/analytics/query
+  Note over R: require_administrator（ADR-6）
+  R-&gt;&gt;S: Pydantic 校验（ADR-1）
+  Note over S: 字段角色由目录决定（ADR-7）&lt;br/&gt;未知字段、user_id 作 property → 422
+  Note over S: 按 time.timezone 切出 UTC 桶边界（ADR-4）
+  S-&gt;&gt;DB: SQLAlchemy Core（ADR-2）
+  DB--&gt;&gt;S: 分组聚合
+  S--&gt;&gt;FE: { columns, rows, truncated }</pre></div></figure>
+</section>
 
-  <section class="doc-section" id="decisions" data-src="sec:decisions">
-    <h2>决策 <small>10 条，全部 accepted；点击一行展开</small></h2>
-    <div class="table-wrap"><table>
-      <thead><tr><th>ID</th><th>决策</th><th>放弃</th><th class="state">状态</th></tr></thead>
-      <tbody>
-        <tr class="dec-row" id="ADR-1" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-1" data-row="ADR-1" data-src="ADR-1" data-comps="index project visual-doc server">
-          <td class="id"><span class="caret">›</span>ADR-1</td>
-          <td><div class="title">三组件划分，固定页面读 md，visual 文档由 agent 生成</div><div class="sum">固定页面读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 生成，iframe 嵌入</div></td>
-          <td><ul class="rej" style="padding:0"><li>只有通用 viewer</li><li>只有 agent 生成 HTML</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-1" hidden="" data-src="ADR-1"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>进度变化频繁，只能实时读 md；方案阅读需要定制化表现力，固定渲染器给不了</p></div>
-          <div class="pick"><h4>选择</h4><p>固定页面（<code>index.html</code>、<code>project.html</code>）读 server 解析 md + <code>runs/</code> 后的 JSON；visual 文档由 agent 按 <code>visual-guide.md</code> 生成，放在方案目录，Visual 标签页用 iframe 嵌入</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>只有通用 viewer</b><span> — 版式固定，表现力不够</span></li><li><b>只有 agent 生成 HTML</b><span> — 进度做不到实时，每次改动都要重生成</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>进度永远实时</li><li>方案阅读体验可以按方案定制</li><li>visual 文档有过时问题（ADR-8）</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="index">index.html</button><button class="chip" type="button" data-comp-chip="project">project.html</button><button class="chip" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button><button class="chip" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div>
-          
-          
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-2" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-2" data-row="ADR-2" data-src="ADR-2" data-comps="parser project">
-          <td class="id"><span class="caret">›</span>ADR-2</td>
-          <td><div class="title">固定页面宽容解析，按块降级显示原文</div><div class="sum">解析模块从不抛错，认不出的块显示原文；整篇识别失败时整篇显示原文</div></td>
-          <td><ul class="rej" style="padding:0"><li>遇到未知格式报错</li><li>按格式版本分别写渲染器</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-2" hidden="" data-src="ADR-2"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>仓库里会有各个历史版本的方案，未来格式还会演进</p></div>
-          <div class="pick"><h4>选择</h4><p>共享解析模块从不抛错，返回 <code>{format, blocks}</code>：识别出的为结构化块，其余为 raw 块按原文顺序保留；整篇识别失败时整篇显示原文并提示"无法解析，显示原文"；Progress 页只在任务可解析时出现</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>遇到未知格式报错</b><span> — 违背向后兼容</span></li><li><b>按格式版本分别写渲染器</b><span> — 维护成本随版本数增长</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>任何版本的方案都能打开，最差也是渲染好的原文</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip" type="button" data-comp-chip="project">project.html</button></div></div>
-          
-          
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-3" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-3" data-row="ADR-3" data-src="ADR-3" data-comps="lint parser templates skill-md">
-          <td class="id"><span class="caret">›</span>ADR-3</td>
-          <td><div class="title">lint 只查一个方案，规则按格式版本生效</div><div class="sum"><code>lint-plan.mjs</code> 只查一个方案；规则标注 <code>since</code>，只对 format ≥ since 的文件生效</div></td>
-          <td><ul class="rej" style="padding:0"><li>扫描整个 <code>.plans/</code></li><li>header 字段记版本</li><li>HTML 注释记版本</li><li>用 skill 版本号</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-3" hidden="" data-src="ADR-3"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>固定页面依赖格式；用户不用 HTML 时，进度追踪和新会话恢复同样依赖格式；旧方案不能被新规则卡住</p></div>
-          <div class="pick"><h4>选择</h4><p><code>lint-plan.mjs &lt;plan-dir&gt; [--as &lt;N&gt;]</code> 只查一个方案，有 error 退出码 1；模板首行 frontmatter <code>format: 2</code>，无 frontmatter 视为 format 1；每条规则标 <code>since</code>，只对 format ≥ since 的文件生效；Self-Review 第一步跑 lint，error 清零才过 gate</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>扫描整个 <code>.plans/</code></b><span> — 旧方案会被新规则卡住</span></li><li><b>header 字段记版本</b><span> — 混在给人看的头部</span></li><li><b>HTML 注释记版本</b><span> — 易被当模板说明删除</span></li><li><b>用 skill 版本号</b><span> — 文字改动也会触发版本变化</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>格式可执行，新旧方案共存</li><li>skill 首次依赖 Node（无 Node 时跳过并提示，退回手工 grep 自检）</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip" type="button" data-comp-chip="templates">templates/</button><button class="chip" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div>
-          <div class="full"><h4>命令</h4><pre class="code"><code class="language-bash">node &lt;skill-dir&gt;/scripts/lint-plan.mjs &lt;plan-dir&gt; [--as &lt;N&gt;]</code></pre><pre class="code"><code class="language-plaintext">file:line  error|warn  rule  message</code></pre></div>
-          <div class="full"><h4>细则</h4><ul><li>since 1：Status 值、任务标题格式与状态、任务 ID 唯一、<code>Depends on</code> / <code>Verify</code> 必填、依赖存在且无环、ADR 编号与 Status、日志 kind 与任务引用、代码块外无 <code>{{</code>、<code>runs/</code> 文件夹名与 handoff Status、状态一致性</li><li>since 2：frontmatter 合法、impl 有 <code>Execution</code>、plan 有 <code>## At a Glance</code></li><li>warn：TBD/TODO；aligned 后仍有未勾选问题；subagent 模式下 <code>[doing]</code> 任务无 run 文件夹；有 handoff 但 impl 未记日志</li><li><code>--as &lt;N&gt;</code>：按 format N 检查旧方案，列出升级需要补的内容</li><li>跨文件规则取两者较小值；文件 format 高于已安装 skill 时只 warn</li><li>执行中每次更新 <code>impl.md</code> 后跑一次；shell 打开某个方案时顶部显示其 lint 结果</li></ul></div>
-          
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-4" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-4" data-row="ADR-4" data-src="ADR-4" data-comps="server">
-          <td class="id"><span class="caret">›</span>ADR-4</td>
-          <td><div class="title">一个 worktree 一个 server，SSE 推送</div><div class="sum">一个 <code>.plans/</code> 一个 server，按 <code>.viewer.json</code> 复用；SSE 推送，200ms 防抖</div></td>
-          <td><ul class="rej" style="padding:0"><li>每个方案一个 server</li><li>WebSocket</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-4" hidden="" data-src="ADR-4"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>同一仓库可能同时推进多个方案，多个会话各跑一个</p></div>
-          <div class="pick"><h4>选择</h4><p><code>plan-viewer.mjs</code> 作用域为一个 <code>.plans/</code>；<code>/health</code> 校验 <code>.viewer.json</code> 的 root 一致则复用，否则新起；<code>/events</code> SSE 带 <code>dir</code>、200ms 防抖；无连接且无请求 2h 后退出</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>每个方案一个 server</b><span> — 端口与进程随方案数增长</span></li><li><b>WebSocket</b><span> — 只需单向推送</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>多方案、多会话共用一个进程</li><li>各 worktree 互不干扰</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div>
-          
-          <div class="full"><h4>路由</h4><table class="mini"><tbody><tr><td><code>/</code></td><td>index.html</td></tr><tr><td><code>/p/&lt;dir&gt;</code></td><td>project.html</td></tr><tr><td><code>/api/plans、/api/plans/&lt;dir&gt;</code></td><td>解析后的 JSON（含 lint 结果）</td></tr><tr><td><code>/files/&lt;dir&gt;/&lt;path&gt;</code></td><td>方案目录内的静态文件（visual 文档、evidence），禁止路径越界</td></tr><tr><td><code>/events</code></td><td>SSE，事件带 dir，200ms 防抖</td></tr><tr><td><code>/health</code></td><td>校验 root</td></tr></tbody></table></div>
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-5" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-5" data-row="ADR-5" data-src="ADR-5" data-comps="index project">
-          <td class="id"><span class="caret">›</span>ADR-5</td>
-          <td><div class="title">固定页面的版式与图表</div><div class="sum">手写亮色/暗色 CSS 变量，同时供页面、mermaid、Cytoscape 使用</div></td>
-          <td><ul class="rej" style="padding:0"><li>Tailwind Play CDN</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-5" hidden="" data-src="ADR-5"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>固定页面需要好看且统一，图表库需要具体色值</p></div>
-          <div class="pick"><h4>选择</h4><p>手写亮色/暗色 CSS 变量，同时供页面、mermaid themeVariables、Cytoscape 使用；库：marked、DOMPurify、mermaid@11 + layout-elk、cytoscape + cytoscape-dagre、highlight.js、lucide</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>Tailwind Play CDN</b><span> — 运行时编译、官方不建议生产使用，且无法供图表库使用</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>全站视觉统一</li><li>CDN 不可用时图表显示源码</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="index">index.html</button><button class="chip" type="button" data-comp-chip="project">project.html</button></div></div>
-          <div class="full"><h4>细则</h4><ul><li>index：每个方案一张卡片，显示标题、日期、Status、Execution、任务完成数、needs-user / blocked / 运行中提示、format 标签、是否有 visual 文档</li><li>Plan / Impl 标签页：At a Glance 置顶，ADR 卡片（选中、放弃、理由），mermaid 使用 <code>look: neo</code> + ELK，其余 raw 块按原文渲染</li><li>Progress 标签页：needs-user / blocked 置顶、状态统计、milestone 进度条、Cytoscape 任务依赖图（按状态着色，点击看任务详情）、run 卡片、日志时间线</li><li>Visual 标签页：有 visual 文档时以 iframe 嵌入并显示是否过时（ADR-8），没有时提示可让 agent 生成</li></ul></div>
-          
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-6" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-6" data-row="ADR-6" data-src="ADR-6" data-comps="visual-template visual-guide visual-doc">
-          <td class="id"><span class="caret">›</span>ADR-6</td>
-          <td><div class="title">visual 文档 = 模板 + 组件库 + 生成指南</div><div class="sum">模板 + 组件 class + 生成指南；subagent 只填写 <code>&lt;main&gt;</code>，内容只来自对应 md</div></td>
-          <td><ul class="rej" style="padding:0"><li>agent 自由发挥</li><li>server 包装内容片段（brainstorming 的做法）</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-6" hidden="" data-src="ADR-6"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>每次让 agent 从零写 HTML，风格不一、样式代码重复、容易漏信息</p></div>
-          <div class="pick"><h4>选择</h4><p><code>visual-template.html</code> 提供骨架、CSS 变量、CDN 库与组件 class；agent 复制到 <code>.plans/&lt;dir&gt;/visual-plan.html</code>，只填写 <code>&lt;main&gt;</code>；<code>visual-guide.md</code> 规定顺序、映射、保真（<code>data-src</code>）与页脚；由 subagent 生成，内容只来自对应 md，不写哈希</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>agent 自由发挥</b><span> — 风格漂移、重复 CSS</span></li><li><b>server 包装内容片段（brainstorming 的做法）</b><span> — 离开 server 就无法查看</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>风格统一，agent 只写内容</li><li>新增组件需要同时更新模板与指南</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="visual-template">visual-template.html</button><button class="chip" type="button" data-comp-chip="visual-guide">visual-guide.md</button><button class="chip" type="button" data-comp-chip="visual-doc">visual-plan.html / visual-impl.html</button></div></div>
-          
-          
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-7" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-7" data-row="ADR-7" data-src="ADR-7" data-comps="visual-status">
-          <td class="id"><span class="caret">›</span>ADR-7</td>
-          <td><div class="title">保真检查脚本</div><div class="sum"><code>visual-status.mjs</code> 比对 md 单元与 <code>data-src</code>：缺失 → error</div></td>
-          <td><ul class="rej" style="padding:0"><li>让另一个 LLM 比对</li><li>只靠指南约束</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-7" hidden="" data-src="ADR-7"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>"尽可能保留原信息"必须能被验证，不能只靠 agent 自律</p></div>
-          <div class="pick"><h4>选择</h4><p>并入 <code>visual-status.mjs</code>：从 md 提取单元清单，与 visual 文档的 <code>data-src</code> 比对；缺失 → error，md 中不存在的 <code>data-src</code> → warn；lint 只管 md 格式，不碰 visual</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>让另一个 LLM 比对</b><span> — 慢且不确定</span></li><li><b>只靠指南约束</b><span> — 已知 LLM 会压缩内容</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>漏章节、漏 ADR、漏任务会被机器发现</li><li>措辞是否忠实仍需人看</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="visual-status">visual-status.mjs</button></div></div>
-          
-          
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-8" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-8" data-row="ADR-8" data-src="ADR-8" data-comps="hash visual-status project">
-          <td class="id"><span class="caret">›</span>ADR-8</td>
-          <td><div class="title">version_hash + 脚本判定过时，gate 前强制同步</div><div class="sum"><code>version_hash</code> + 逐单元哈希判定过时；gate 前只同步变化的单元</div></td>
-          <td><ul class="rej" style="padding:0"><li>只比整篇哈希</li><li>用文件修改时间</li><li>让 agent 自己记得同步</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-8" hidden="" data-src="ADR-8"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>md 在 interview、修订、Changing Course 中持续变化；用户要求用哈希与脚本判定 md 与 HTML 是否一致</p></div>
-          <div class="pick"><h4>选择</h4><p><code>source-hash.mjs</code> 规范化 md 并剔除追踪噪声，得到 <code>version_hash</code> 与逐单元哈希；visual 内嵌清单 <code>plan-source</code>；<code>visual-status.mjs</code> 输出 fresh / stale / unstamped 并列出变化单元，<code>--stamp</code> 通过保真检查才写入；gate 前、Changing Course 后、新会话恢复时运行，退出码 1 → 只同步列出的单元</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>只比整篇哈希</b><span> — 无法增量同步，每次都要全量重写</span></li><li><b>用文件修改时间</b><span> — 编辑器保存、git checkout 都会改动</span></li><li><b>让 agent 自己记得同步</b><span> — 正是要解决的问题</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>过时判定确定、可脚本化</li><li>增量同步只改变化单元，省 token</li><li>执行期 visual-impl 不会因进度更新而误报过时</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip" type="button" data-comp-chip="project">project.html</button></div></div>
-          <div class="full"><h4>命令与清单</h4><pre class="code"><code class="language-bash">node &lt;skill-dir&gt;/scripts/visual-status.mjs &lt;plan-dir&gt; [--stamp] [--json]</code></pre><pre class="code"><code class="language-html">&lt;script type="application/json" id="plan-source"&gt;{source, format, version_hash, units, stamped_at}&lt;/script&gt;</code></pre></div>
-          <div class="full"><h4>细则</h4><ul><li>剔除的追踪噪声：header <code>Status</code> 行、任务标题末尾的 <code>[status]</code>、步骤勾选状态、Progress log 条目</li><li>哈希只由脚本写入，agent 与 subagent 不手写</li><li>执行期间任务状态与日志变化不会触发</li></ul></div>
-          
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-9" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-9" data-row="ADR-9" data-src="ADR-9" data-comps="skill-md">
-          <td class="id"><span class="caret">›</span>ADR-9</td>
-          <td><div class="title">询问流程</div><div class="sum">两个询问点：<code>plan.md</code> 首稿后问是否生成 visual；执行开始前问是否打开进度页</div></td>
-          <td><ul class="rej" style="padding:0"><li>每个 gate 都问</li><li>impl 首稿单独再问</li><li>默认生成</li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-9" hidden="" data-src="ADR-9"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>HTML 不强制；用户要求只在 <code>plan.md</code> 首稿完成后询问，执行开始前再询问一次</p></div>
-          <div class="pick"><h4>选择</h4><p>两个询问点：<code>plan.md</code> 首稿首次呈现时问"生成可视化 HTML 并在浏览器查看？"（同意后 impl 首稿时自动生成 visual-impl）；执行开始前问"打开进度页？"；每个询问点只问一次</p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b>每个 gate 都问</b><span> — 打扰</span></li><li><b>impl 首稿单独再问</b><span> — 用户要求只在 plan 首稿问</span></li><li><b>默认生成</b><span> — 违背"不强制"</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>最多问两次，分别对应阅读方案与跟踪进度两个场景</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="skill-md">SKILL.md · viewer.md</button></div></div>
-          <div class="full"><h4>细则</h4><ul><li>走对话捷径没有 <code>plan.md</code> 时，这个询问移到 <code>impl.md</code> 首稿</li><li>拒绝后本会话不再问；用户随时可以要求"打开 viewer"或"生成 visual"</li><li>visual-impl 是批准时实现方案的快照，不含进度（Q6）</li></ul></div>
-          
-          
-        </div></td></tr>
-        <tr class="dec-row" id="ADR-10" tabindex="0" role="button" aria-expanded="false" aria-controls="d-ADR-10" data-row="ADR-10" data-src="ADR-10" data-comps="parser hash lint visual-status server">
-          <td class="id"><span class="caret">›</span>ADR-10</td>
-          <td><div class="title">手写 ESM，不引入 npm 包与构建</div><div class="sum"><code>scripts/*.mjs</code> 直接手写为最终产物，不设 <code>packages/</code>、不打包</div></td>
-          <td><ul class="rej" style="padding:0"><li><code>packages/</code> + npm + 打包成 <code>.mjs</code></li></ul></td>
-          <td class="state"><span class="badge ok">accepted</span></td>
-        </tr>
-        <tr class="dec-detail" id="d-ADR-10" hidden="" data-src="ADR-10"><td colspan="4"><div class="dec-body">
-          <div class="full"><h4>背景</h4><p>脚本约 1500 行 Node 加约 1200 行前端；Node 端所需能力标准库全有；前端库已定为 CDN；skill 以目录形式分发，安装时不会跑 <code>npm install</code></p></div>
-          <div class="pick"><h4>选择</h4><p><code>scripts/*.mjs</code> 与 <code>scripts/lib/*.mjs</code> 直接手写为最终产物，不设 <code>packages/</code>、不打包；测试用 <code>node --test</code>；类型用 JSDoc + <code>// @ts-check</code></p></div>
-          <div class="drop"><h4>放弃</h4><ul><li><b><code>packages/</code> + npm + 打包成 <code>.mjs</code></b><span> — 需提交构建产物并保证与源码同步（多一道 CI 检查），当前没有需要打包的运行时依赖</span></li></ul></div>
-          <div><h4>影响</h4><ul><li>源码即发布物，无 dist 与源码不一致的问题</li><li>没有编译期类型检查</li></ul></div>
-          <div><h4>涉及组件</h4><div class="chips"><button class="chip" type="button" data-comp-chip="parser">lib/parse-plan.mjs</button><button class="chip" type="button" data-comp-chip="hash">lib/source-hash.mjs</button><button class="chip" type="button" data-comp-chip="lint">lint-plan.mjs</button><button class="chip" type="button" data-comp-chip="visual-status">visual-status.mjs</button><button class="chip" type="button" data-comp-chip="server">plan-viewer.mjs</button></div></div>
-          
-          
-          <div class="full"><h4>重新评估的条件</h4><p>Node 端需要第三方库（完整 markdown AST、YAML 解析）、需要离线内置前端库、或代码量超过约 5000 行需要 TypeScript</p></div>
-        </div></td></tr>
-      </tbody>
-    </table></div>
-  </section>
+<section class="sec" id="shape">
+  <h2>查询结构：properties 与 metrics <small>ADR-7</small></h2>
+  <p class="lede">properties 是不聚合的分组列，metrics 是聚合列；字段能做什么由目录决定。</p>
+  <div class="grid g2">
+    <figure class="fig"><figcaption><b>一个查询由哪些部分组成</b><span class="tag">由原文整理</span><button class="src-link" type="button" data-open="src-2">原文</button></figcaption><div class="pad anat"><div><b>dataset</b><span>服务端定义的数据集（见「数据集」）</span></div><div><b>properties</b><span>不聚合的列，会成为 <code>GROUP BY</code>；时间字段可带 <code>granularity</code>，每个查询最多一个</span></div><div><b>metrics</b><span><code>aggregate</code> 加可选的 <code>field</code>、<code>cast</code>、<code>as</code>；不带 metrics 时返回 422</span></div><div><b>filters</b><span><code>{field, op, value}</code>，用 <code>{and: [...]}</code> 组合；不支持 <code>or</code>、<code>ilike</code>、模糊搜索</span></div><div><b>time</b><span><code>from</code>、<code>to</code> 带秒、带偏移；指定 <code>granularity</code> 时 <code>timezone</code> 必填（ADR-4）</span></div><div><b>order · limit</b><span><code>order.by</code> 引用 <code>as</code> 的名字；返回最多 100 行</span></div></div></figure>
+    <figure class="fig"><figcaption><b>示例</b></figcaption><div data-tabs><div class="tabs" role="tablist"><button type="button" role="tab" aria-selected="true" data-tab="q0">请求</button><button type="button" role="tab" aria-selected="false" data-tab="q1">响应</button></div><div data-panel="q0"><pre class="code"><code class="language-json">{
+  &quot;dataset&quot;: &quot;webhook_attempts&quot;,
+  &quot;properties&quot;: [
+    { &quot;field&quot;: &quot;application&quot; },
+    { &quot;field&quot;: &quot;attempted_at&quot;, &quot;granularity&quot;: &quot;day&quot; }
+  ],
+  &quot;metrics&quot;: [
+    { &quot;aggregate&quot;: &quot;count&quot;, &quot;as&quot;: &quot;attempts&quot; },
+    {
+      &quot;aggregate&quot;: &quot;avg&quot;,
+      &quot;field&quot;: &quot;duration_ms&quot;,
+      &quot;cast&quot;: &quot;integer&quot;,
+      &quot;as&quot;: &quot;avg_ms&quot;
+    },
+    { &quot;aggregate&quot;: &quot;max&quot;, &quot;field&quot;: &quot;duration_ms&quot;, &quot;as&quot;: &quot;max_ms&quot; }
+  ],
+  &quot;filters&quot;: { &quot;and&quot;: [{ &quot;field&quot;: &quot;status_code&quot;, &quot;op&quot;: &quot;ge&quot;, &quot;value&quot;: 500 }] },
+  &quot;time&quot;: {
+    &quot;from&quot;: &quot;2026-11-05T00:00:00+08:00&quot;,
+    &quot;to&quot;: &quot;2026-11-12T00:00:00+08:00&quot;,
+    &quot;timezone&quot;: &quot;Asia/Shanghai&quot;
+  },
+  &quot;order&quot;: [{ &quot;by&quot;: &quot;avg_ms&quot;, &quot;dir&quot;: &quot;desc&quot; }],
+  &quot;limit&quot;: 100
+}</code></pre></div><div data-panel="q1" hidden><pre class="code"><code class="language-json">{
+  &quot;columns&quot;: [
+    { &quot;name&quot;: &quot;application&quot;, &quot;kind&quot;: &quot;property&quot;, &quot;type&quot;: &quot;application&quot; },
+    { &quot;name&quot;: &quot;attempted_at&quot;, &quot;kind&quot;: &quot;property&quot;, &quot;type&quot;: &quot;datetime&quot; },
+    { &quot;name&quot;: &quot;attempts&quot;, &quot;kind&quot;: &quot;metric&quot;, &quot;type&quot;: &quot;integer&quot; },
+    { &quot;name&quot;: &quot;avg_ms&quot;, &quot;kind&quot;: &quot;metric&quot;, &quot;type&quot;: &quot;integer&quot; },
+    { &quot;name&quot;: &quot;max_ms&quot;, &quot;kind&quot;: &quot;metric&quot;, &quot;type&quot;: &quot;integer&quot; }
+  ],
+  &quot;rows&quot;: [
+    {
+      &quot;application&quot;: { &quot;id&quot;: &quot;…&quot;, &quot;name&quot;: &quot;GitLab&quot; },
+      &quot;attempted_at&quot;: &quot;2026-11-04T16:00:00Z&quot;,
+      &quot;attempts&quot;: 12,
+      &quot;avg_ms&quot;: 840,
+      &quot;max_ms&quot;: 3012
+    }
+  ],
+  &quot;truncated&quot;: false
+}</code></pre></div></div></figure>
+  </div>
+  <figure class="fig"><figcaption><b>哪种字段能用哪种聚合</b><span class="tag">由原文整理</span></figcaption><div class="pad"><table class="matrix"><thead><tr><th>字段类型</th><th><code>count</code></th><th><code>count_distinct</code></th><th><code>sum</code></th><th><code>avg</code></th><th><code>min</code></th><th><code>max</code></th></tr></thead><tbody><tr><th>无字段</th><td class="on" aria-label="允许">●</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td></tr><tr><th><code>id</code>、<code>enum</code>、<code>string</code></th><td class="on" aria-label="允许">●</td><td class="on" aria-label="允许">●</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td></tr><tr><th><code>integer</code>、<code>number</code></th><td class="on" aria-label="允许">●</td><td class="on" aria-label="允许">●</td><td class="on" aria-label="允许">●</td><td class="on" aria-label="允许">●</td><td class="on" aria-label="允许">●</td><td class="on" aria-label="允许">●</td></tr><tr><th><code>datetime</code></th><td class="on" aria-label="允许">●</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td><td class="off" aria-label="不允许">·</td><td class="on" aria-label="允许">●</td><td class="on" aria-label="允许">●</td></tr></tbody>
+<tfoot><tr><th>结果类型</th><td><code>integer</code></td><td><code>integer</code></td><td>与字段相同</td><td><code>number</code></td><td>与字段相同</td><td>与字段相同</td></tr></tfoot></table><p style="margin-top:10px;font-size:13px;color:var(--muted)"><code>cast</code> 只作用在聚合结果上（<code>integer</code> 四舍五入、<code>number</code>、<code>string</code>），不会因为数据而失败；<code>user_id</code> 只能用在 <code>count</code>、<code>count_distinct</code> 里（ADR-6）。</p></div></figure>
+  <figure class="fig"><figcaption><b>支持的查询形状</b><span class="tag">由原文整理</span><button class="src-link" type="button" data-open="src-3">原文</button></figcaption><div class="pad"><div class="shapes"><div class="shape"><svg viewBox="0 0 40 36" aria-hidden="true"><text x="20" y="27" text-anchor="middle" class="g-num">1</text></svg><b>单个数字（统计卡）</b><span class="w">只有 <code>metrics</code></span><span>1 行；可同时要多个 metric</span></div><div class="shape"><svg viewBox="0 0 40 36" aria-hidden="true"><rect x="6" y="20" width="6" height="14" class="g"/><rect x="17" y="12" width="6" height="22" class="g"/><rect x="28" y="24" width="6" height="10" class="g"/></svg><b>按属性分组</b><span class="w"><code>properties: [{field: &quot;application&quot;}]</code>，可加 <code>order</code>、<code>limit</code></span><span>每个应用一行（按 <code>application_id</code> 分组，附名称）</span></div><div class="shape"><svg viewBox="0 0 40 36" aria-hidden="true"><rect x="5" y="8" width="30" height="5" class="g"/><rect x="5" y="17" width="30" height="5" class="g"/><rect x="5" y="26" width="30" height="5" class="g"/></svg><b>多个属性</b><span class="w">多个 property</span><span>每个组合一行</span></div><div class="shape"><svg viewBox="0 0 40 36" aria-hidden="true"><polyline points="4,30 13,20 22,24 31,10 37,14" class="g-line"/></svg><b>时间序列</b><span class="w">一个带 <code>granularity</code> 的时间 property</span><span>每个桶一行，空桶的 <code>count</code>、<code>count_distinct</code>、<code>sum</code> 为 0，<code>avg</code>、<code>min</code>、<code>max</code> 为 <code>null</code></span></div><div class="shape"><svg viewBox="0 0 40 36" aria-hidden="true"><polyline points="4,30 13,22 22,26 37,12" class="g-line"/><polyline points="4,20 13,28 22,16 37,22" class="g-line g-2"/></svg><b>属性 × 时间</b><span class="w">普通 property 加时间 property</span><span>每个桶 × 结果中出现的每个属性值一行，缺的组合按上一行补值；行数上限仍是 100</span></div></div><div class="nope">不支持：<span>按用户分组（ADR-6）</span><span>对聚合结果筛选（<code>HAVING</code>）</span><span>「每组取前 N」（<code>limit</code> 只作用于整个结果）</span><span>字段之间的运算（如 <code>finished_at - started_at</code>）</span><span>比率和同比（前端用两个查询自己算）</span></div></div></figure>
+  <figure class="fig"><figcaption><b>三个例子</b><button class="src-link" type="button" data-open="src-4">原文</button></figcaption><div class="pad grid g3"><div class="grid" style="gap:8px"><b style="font-size:13.5px">统计卡：近 7 日登录人数</b><pre class="code"><code class="language-json">{ &quot;dataset&quot;: &quot;sign_ins&quot;,
+  &quot;metrics&quot;: [{ &quot;aggregate&quot;: &quot;count_distinct&quot;, &quot;field&quot;: &quot;user_id&quot;, &quot;as&quot;: &quot;users&quot; }],
+  &quot;filters&quot;: { &quot;and&quot;: [{ &quot;field&quot;: &quot;outcome&quot;, &quot;op&quot;: &quot;eq&quot;, &quot;value&quot;: &quot;success&quot; }] },
+  &quot;time&quot;: { &quot;from&quot;: &quot;2026-11-05T00:00:00+08:00&quot;, &quot;to&quot;: &quot;2026-11-12T00:00:00+08:00&quot; } }
+// → &quot;rows&quot;: [{ &quot;users&quot;: 2751 }]</code></pre></div><div class="grid" style="gap:8px"><b style="font-size:13.5px">近 30 天打开次数前 5 的应用</b><pre class="code"><code class="language-json">{ &quot;dataset&quot;: &quot;launches&quot;,
+  &quot;properties&quot;: [{ &quot;field&quot;: &quot;application&quot; }],
+  &quot;metrics&quot;: [{ &quot;aggregate&quot;: &quot;count&quot;, &quot;as&quot;: &quot;opens&quot; }],
+  &quot;time&quot;: { &quot;from&quot;: &quot;2026-10-13T00:00:00+08:00&quot;, &quot;to&quot;: &quot;2026-11-12T00:00:00+08:00&quot; },
+  &quot;order&quot;: [{ &quot;by&quot;: &quot;opens&quot;, &quot;dir&quot;: &quot;desc&quot; }], &quot;limit&quot;: 5 }
+// → [{ &quot;application&quot;: { &quot;id&quot;: &quot;…&quot;, &quot;name&quot;: &quot;GitLab&quot; }, &quot;opens&quot;: 412 }, …]</code></pre></div><div class="grid" style="gap:8px"><b style="font-size:13.5px">近 7 日每日活跃人数</b><pre class="code"><code class="language-json">{ &quot;dataset&quot;: &quot;active_users&quot;,
+  &quot;properties&quot;: [{ &quot;field&quot;: &quot;occurred_at&quot;, &quot;granularity&quot;: &quot;day&quot; }],
+  &quot;metrics&quot;: [{ &quot;aggregate&quot;: &quot;count_distinct&quot;, &quot;field&quot;: &quot;user_id&quot;, &quot;as&quot;: &quot;users&quot; }],
+  &quot;time&quot;: { &quot;from&quot;: &quot;2026-11-05T00:00:00+08:00&quot;, &quot;to&quot;: &quot;2026-11-12T00:00:00+08:00&quot;, &quot;timezone&quot;: &quot;Asia/Shanghai&quot; } }
+// → 7 行，如 { &quot;occurred_at&quot;: &quot;2026-11-04T16:00:00Z&quot;, &quot;users&quot;: 318 }；空的天为 0</code></pre></div></div><p class="hint">行是对象数组，可以直接交给 recharts 的 <code>dataKey</code>。</p></figure>
+</section>
 
-  <section class="doc-section" id="roadmap" data-src="sec:roadmap">
-    <h2>路线 <small>点击里程碑在架构图中高亮</small></h2>
-    <div class="road"><button class="step" type="button" data-ms="M1" data-comps="parser lint templates"><span class="mid">M1</span><p>解析器（结构化块 + raw 降级）+ lint（since 规则）+ 模板 frontmatter + fixture</p><span class="verify">format 1、format 2（中、英标题）合规 fixture 零退出；每条 error 规则各有一个违规 fixture</span></button><button class="step" type="button" data-ms="M2" data-comps="server index project"><span class="mid">M2</span><p>server + <code>index.html</code> + <code>project.html</code> 的 Plan / Impl 标签页</p><span class="verify">旧格式与无法解析的方案显示原文；改文件 ≤1s 刷新</span></button><button class="step" type="button" data-ms="M3" data-comps="project"><span class="mid">M3</span><p>Progress 标签页</p><span class="verify">inline 与 subagent fixture 各一，run 卡片与依赖图正确</span></button><button class="step" type="button" data-ms="M4" data-comps="visual-template visual-guide visual-status hash visual-doc"><span class="mid">M4</span><p><code>visual-template.html</code> + <code>visual-guide.md</code> + <code>visual-status.mjs</code>（保真、过时、<code>--stamp</code>）</p><span class="verify">用本方案生成一份 visual-plan 并盖章为 fresh；改一个 ADR 后报告 stale 且只列出该 ADR；只改任务状态仍为 fresh</span></button><button class="step" type="button" data-ms="M5" data-comps="templates skill-md"><span class="mid">M5</span><p>接入 skill：模板 At a Glance 与 frontmatter、<code>SKILL.md</code>（询问流程、lint 自检、gate 前重新生成 visual）、<code>references/viewer.md</code></p><span class="verify">端到端走一遍 gate</span></button></div>
-  </section>
+<section class="sec" id="timezone">
+  <h2>时区分桶 <small>ADR-4</small></h2>
+  <p class="lede">数据库只存 UTC，「一天」取决于查看者所在时区；服务端按请求的时区切出 UTC 边界再查询。</p>
+  <figure class="fig"><figcaption><b>同一刻在两个时区</b><span class="tag">由原文整理</span></figcaption><div class="pad"><svg class="ruler" viewBox="0 0 640 190" role="img" aria-label="Asia/Shanghai 的一天与 UTC 的一天错开 8 小时">
+  <rect x="300" y="40" width="104" height="104" class="warn-band"/>
+  <text x="352" y="34" text-anchor="middle" class="t-warn">北京时间 0–8 点</text>
+  <text x="10" y="70" class="t-lab">Asia/Shanghai</text>
+  <rect x="300" y="56" width="312" height="24" rx="4" class="bar-local"/>
+  <text x="456" y="72" text-anchor="middle" class="t-bar">本地 11-05 这一天</text>
+  <text x="10" y="118" class="t-lab">UTC</text>
+  <rect x="92" y="104" width="312" height="24" rx="4" class="bar-utc"/>
+  <text x="248" y="120" text-anchor="middle" class="t-bar">UTC 11-04 这一天</text>
+  <line x1="300" y1="46" x2="300" y2="150" class="edge"/>
+  <text x="300" y="166" text-anchor="middle" class="t-code">2026-11-05T00:00:00+08:00 = 2026-11-04T16:00:00Z</text>
+  <text x="300" y="183" text-anchor="middle" class="t-note">Asia/Shanghai 的日界是 UTC 16:00</text>
+</svg></div></figure>
+    <figure class="fig"><figcaption><b>时间参数的处理</b><span class="tag">由原文整理</span></figcaption><div class="diagram" role="img" aria-label="时间参数处理流程"><pre class="mermaid">flowchart LR
+  T[&quot;time.from / time.to&lt;br/&gt;带秒、带偏移的 ISO-8601&quot;] --&gt; V{&quot;缺秒或缺偏移？&quot;}
+  V -- 是 --&gt; E1[422]
+  V -- 否 --&gt; G{&quot;指定 granularity？&quot;}
+  G -- 否 --&gt; U[&quot;转成 UTC 再进数据库&quot;]
+  G -- 是 --&gt; TZ{&quot;有 time.timezone，&lt;br/&gt;且 from、to 在桶边界上？&quot;}
+  TZ -- 否 --&gt; E2[422]
+  TZ -- 是 --&gt; Z[&quot;zoneinfo 切成本地小时/日/周/月&lt;br/&gt;→ 一串 UTC 边界&quot;]
+  Z --&gt; CTE[&quot;values(...).cte('bucket')&lt;br/&gt;左连接，逐桶分组&quot;]
+  CTE --&gt; O[&quot;每桶一行，没有数据的桶返回 0&quot;]</pre></div></figure>
+</section>
 
-  <section class="doc-section" id="files">
-    <h2>文件 <small>由组件整理；按目录分组</small></h2>
-    <figure class="derived" data-derived="sec:architecture ADR-1 ADR-2 ADR-3 ADR-4 ADR-5 ADR-6 ADR-7 ADR-8 ADR-9 ADR-10"><div class="table-wrap"><table class="files">
-      <thead><tr><th>路径</th><th>组件</th><th>里程碑</th><th>决策</th></tr></thead>
-      <tbody><tr class="group-row"><td colspan="4">.plans/</td></tr><tr><td class="path">.plans/&lt;dir&gt;/</td><td>.plans/date-slug/</td><td class="path">—</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button></div></td></tr><tr><td class="path">.plans/.viewer.json</td><td>plan-viewer.mjs</td><td class="path">M2</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></div></td></tr><tr><td class="path">.plans/&lt;dir&gt;/visual-plan.html</td><td>visual-plan.html / visual-impl.html</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></div></td></tr><tr><td class="path">.plans/&lt;dir&gt;/visual-impl.html</td><td>visual-plan.html / visual-impl.html</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></div></td></tr><tr class="group-row"><td colspan="4">scripts/lib/</td></tr><tr><td class="path">scripts/lib/parse-plan.mjs</td><td>lib/parse-plan.mjs</td><td class="path">M1</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button><button class="chip" type="button" data-adr="ADR-3">ADR-3</button><button class="chip" type="button" data-adr="ADR-10">ADR-10</button></div></td></tr><tr><td class="path">scripts/lib/source-hash.mjs</td><td>lib/source-hash.mjs</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr class="group-row"><td colspan="4">scripts/</td></tr><tr><td class="path">scripts/lint-plan.mjs</td><td>lint-plan.mjs</td><td class="path">M1</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td class="path">scripts/visual-status.mjs</td><td>visual-status.mjs</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-7">ADR-7</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td class="path">scripts/plan-viewer.mjs</td><td>plan-viewer.mjs</td><td class="path">M2</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></div></td></tr><tr class="group-row"><td colspan="4">assets/</td></tr><tr><td class="path">assets/index.html</td><td>index.html</td><td class="path">M2</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button><button class="chip" type="button" data-adr="ADR-5">ADR-5</button></div></td></tr><tr><td class="path">assets/project.html</td><td>project.html</td><td class="path">M2</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-1">ADR-1</button><button class="chip" type="button" data-adr="ADR-2">ADR-2</button><button class="chip" type="button" data-adr="ADR-5">ADR-5</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td class="path">assets/visual-template.html</td><td>visual-template.html</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></div></td></tr><tr class="group-row"><td colspan="4">references/</td></tr><tr><td class="path">references/visual-guide.md</td><td>visual-guide.md</td><td class="path">M4</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></div></td></tr><tr><td class="path">references/viewer.md</td><td>SKILL.md · viewer.md</td><td class="path">M5</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></div></td></tr><tr class="group-row"><td colspan="4">templates/</td></tr><tr><td class="path">templates/plan.md</td><td>templates/</td><td class="path">M5</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td class="path">templates/impl.md</td><td>templates/</td><td class="path">M5</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr class="group-row"><td colspan="4">(skill 根目录)</td></tr><tr><td class="path">SKILL.md</td><td>SKILL.md · viewer.md</td><td class="path">M5</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></div></td></tr></tbody>
-    </table></div></figure>
-  </section>
+<section class="sec" id="launch">
+  <h2>应用打开怎么记录 <small>ADR-3</small></h2>
+  <p class="lede">指标的含义是「经过 Portal 入口的打开请求」：直接收藏应用网址的访问不计入。</p>
+  <article class="card weak"><h3>前置：生产 Launchpad 接真实接口</h3><p>生产 Launchpad 改为读取已有的 <code>GET /api/launchpad</code>（真实 UUID、<code>kind</code>、<code>url</code>、<code>icon</code>、分类），mock 只留给 Storybook。</p><p class="alt">只把卡片链接换成 <code>/open</code> 时 ID 不是 UUID，打不开也记不到（Blindspots）。</p><span class="chips"><button class="chip" type="button" data-open="ADR-3">ADR-3</button><button class="chip" type="button" data-open="M2">M2</button></span></article>
+  <figure class="fig"><figcaption><b>打开一个应用</b><span class="tag">由原文整理</span></figcaption><div class="diagram" role="img" aria-label="应用打开的时序图"><pre class="mermaid">sequenceDiagram
+  actor U as 员工
+  participant LP as Launchpad 卡片
+  participant O as GET /api/launchpad/{id}/open
+  participant T as application_launch
+  participant APP as 应用 URL
+  U-&gt;&gt;LP: 点开应用
+  LP-&gt;&gt;O: 同源跳转（SameSite=Lax 会带上会话）
+  O-&gt;&gt;O: 检查 can_access
+  alt 没有权限或应用已停用
+    O--&gt;&gt;U: 404
+  else
+    O-&gt;&gt;T: 记一行（只插入，保留 400 天）
+    O--&gt;&gt;APP: 302 到该应用登记的 URL
+  end</pre></div></figure>
+</section>
 
-  <section class="doc-section" id="risks" data-src="sec:risks-pre-mortem">
-    <h2>风险 <small>pre-mortem</small></h2>
-    <div class="table-wrap"><table>
-      <thead><tr><th>风险</th><th>影响</th><th>缓解</th><th>决策</th></tr></thead>
-      <tbody><tr><td>visual 文档漏掉约束或风险，用户据此确认</td><td style="color:var(--muted)">方向确认建立在不完整信息上</td><td>ADR-7 保真检查；页脚注明以 md 为准；source 块兜底</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-7">ADR-7</button></div></td></tr><tr><td>visual 文档过时</td><td style="color:var(--muted)">用户读旧版本</td><td>ADR-8 哈希比对 + 标记</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td>改了 Fixed 却忘了 bump format</td><td style="color:var(--muted)">旧方案被新规则误伤</td><td>每个 format 各留一个合规 fixture，旧 fixture 失败即说明漏标 since</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td>生成 visual 消耗大量 token</td><td style="color:var(--muted)">会话变慢、上下文被挤占</td><td>默认派 subagent；只在 gate 前且 md 有变化时生成</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td>宿主回收后台进程</td><td style="color:var(--muted)">页面断连</td><td>提及 URL 前检查 <code>.viewer.json</code> 实例存活，必要时同端口重启；EventSource 自动重连</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></div></td></tr><tr><td>md 或 visual 中的 HTML 注入</td><td style="color:var(--muted)">本地页面 XSS</td><td>固定页面用 DOMPurify，mermaid <code>securityLevel: strict</code>；visual 用 iframe <code>sandbox="allow-scripts"</code>，不给 same-origin</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-5">ADR-5</button></div></td></tr><tr><td>CDN 不可用</td><td style="color:var(--muted)">图表不显示</td><td>降级为源码，正文可读</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-5">ADR-5</button></div></td></tr><tr><td>环境没有 Node</td><td style="color:var(--muted)">lint 与 viewer 不可用</td><td>lint 跳过并提示，退回手工自检；不提供 viewer</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr></tbody>
-    </table></div>
-  </section>
+<section class="sec" id="decisions">
+  <h2>决策 <small>8 条，全部 accepted；点击查看原文</small></h2>
+  <div class="choices">
+    <button class="choice chosen" type="button" data-open="opt-A"><b>A：JSON 语义查询（推荐）</b><span>天然白名单，不会 SQL 注入；Pydantic → OpenAPI → TS 生成，前端有类型和补全</span></button>
+    <button class="choice" type="button" data-open="opt-B"><b>B：类 SQL 文本查询</b><span>任何解析漏洞都是注入或越权读表；前端只能拼字符串，没有类型</span></button>
+    <button class="choice" type="button" data-open="opt-C"><b>C：只提供固定的命名指标</b><span>不满足「前端定义数据结构和筛选」；每加一个图都要改后端</span></button>
+    <button class="choice" type="button" data-open="opt-D"><b>D：GraphQL 或直接开只读 SQL</b><span>都不考虑</span></button>
+  </div>
+  <div class="rows">
+    <button class="row" type="button" data-open="ADR-1" aria-expanded="false"><span class="id">ADR-1</span><span class="t">前端用 JSON 语义查询，不用类 SQL</span><span class="sub"><i>放弃</i>类 SQL（B）；固定端点（C）</span><span class="st"><span class="pill ok">accepted</span></span></button><button class="row" type="button" data-open="ADR-2" aria-expanded="false"><span class="id">ADR-2</span><span class="t">直接查业务表，不做预聚合</span><span class="sub"><i>放弃</i>每晚预聚合，或结果缓存</span><span class="st"><span class="pill ok">accepted</span></span></button><button class="row" type="button" data-open="ADR-3" aria-expanded="false"><span class="id">ADR-3</span><span class="t">用跳转端点记录应用打开</span><span class="sub"><i>放弃</i>前端打点（<code>navigator.sendBeacon</code>）；写进审计</span><span class="st"><span class="pill ok">accepted</span></span></button><button class="row" type="button" data-open="ADR-4" aria-expanded="false"><span class="id">ADR-4</span><span class="t">时间一律带秒和时区偏移；后端转成 UTC 再查询，按请求的时区分桶</span><span class="sub"><i>放弃</i>按 UTC 分桶后由前端合并；<code>date_trunc</code> 加 <code>AT TIME ZONE</code>；在运行时配置里加组织时区</span><span class="st"><span class="pill ok">accepted</span></span></button><button class="row" type="button" data-open="ADR-5" aria-expanded="false"><span class="id">ADR-5</span><span class="t">字段可以读审计 <code>details</code> 里的固定键</span><span class="sub"><i>放弃</i>给审计加 <code>method</code> 列再回填</span><span class="st"><span class="pill ok">accepted</span></span></button><button class="row" type="button" data-open="ADR-6" aria-expanded="false"><span class="id">ADR-6</span><span class="t">只有管理员能查，只给聚合结果</span><span class="sub"><i>放弃</i>让员工看自己的数据；按用户分组</span><span class="st"><span class="pill ok">accepted</span></span></button><button class="row" type="button" data-open="ADR-7" aria-expanded="false"><span class="id">ADR-7</span><span class="t">查询的列分 properties 和 metrics</span><span class="sub"><i>放弃</i>由前端对输入字段做 <code>cast</code>；由目录预定义命名指标</span><span class="st"><span class="pill ok">accepted</span></span></button><button class="row" type="button" data-open="ADR-8" aria-expanded="false"><span class="id">ADR-8</span><span class="t">分析是可选插件 <code>plugins/analytics</code></span><span class="sub"><i>放弃</i>按 <code>&lt;module&gt;.router</code> 猜路径挂载；直接等 BedRock 发版；核心内带 manifest 的子模块；普通领域包</span><span class="st"><span class="pill ok">accepted</span></span></button>
+  </div>
+</section>
 
-  <section class="doc-section" id="background">
-    <h2>背景</h2>
-    <div class="context" data-src="sec:context"><p><code>writing-dev-plans</code> 的 <code>plan.md</code> / <code>impl.md</code> 是纯 markdown，评审时阅读疲劳；执行进度只能翻 <code>impl.md</code> 和 <code>runs/</code>。用户的拆分：</p>
-<div class="table-wrap"><table><thead><tr><th>组件</th><th>性质</th><th>作用</th></tr></thead><tbody>
-<tr><td class="path">index.html</td><td>固定，随 skill 发布</td><td>列出仓库内全部方案</td></tr>
-<tr><td class="path">project.html</td><td>固定，随 skill 发布（app shell）</td><td>单个方案的结构化视图：Plan、Impl、Progress，外加 Visual 标签页</td></tr>
-<tr><td class="path">visual-plan.html / visual-impl.html</td><td>agent 为每个方案生成，存放在 <code>.plans/&lt;dir&gt;/</code></td><td>把 md 转成可读性更高的 HTML：突出关键、尽量保留原信息、尽量用图表</td></tr>
-</tbody></table></div>
-<p>现状：追踪格式已固定（<code>SKILL.md</code> › Templates Are Skeletons 的 Fixed 列表），已发布两版模板且无版本标记（a8ad338 无 <code>Execution</code>，eed5021 新增 <code>Execution</code>）；subagent 产物在 <code>.plans/&lt;dir&gt;/runs/&lt;Tn&gt;-&lt;k&gt;/</code>。</p></div>
-    <div class="cols">
-      <article class="card" data-src="sec:goals"><h3>目标</h3><ul><li>一个页面列出全部方案；一个页面看单个方案的结构化内容和实时进度（inline 与 subagent）</li><li>固定页面兼容所有历史格式，无法解析时显示原文</li><li>agent 生成的可视化文档：关键信息置顶、信息不丢、能画图的画图</li><li>全部可选：用户不要 HTML 时，skill 流程与现在相同（只多一步 lint）</li></ul></article>
-      <article class="card non" data-src="sec:non-goals"><h3>非目标</h3><ul><li>浏览器内写回（批准、评论、选执行模式），仍在终端完成</li><li>分享、远程访问、静态站点导出</li><li>支持非本 skill 的 plan 格式</li><li>离线渲染图表（CDN 不可用时降级为源码或文本）</li><li>旧 plan 自动迁移</li><li>visual 文档随 md 每次修改实时重生成</li></ul></article>
-    </div>
-    <details class="more" data-src="sec:blindspots"><summary>盲点<small>7 条</small></summary><div class="inner"><div class="table-wrap"><table>
-      <thead><tr><th>发现</th><th>类型</th><th>为什么会出问题</th><th>落在</th></tr></thead>
-      <tbody><tr><td><code>SKILL.md</code>:21 允许把模板标题翻译成用户语言，只有追踪标记保持英文</td><td class="path">landmine</td><td style="color:var(--muted)">按 <code>## Tasks</code> 等标题定位会在中文 plan 上失效</td><td><div class="chips"><span class="chip">Constraints</span><button class="chip" type="button" data-adr="ADR-2">ADR-2</button></div></td></tr><tr><td>已发布两版模板且无版本标记</td><td class="path">history</td><td style="color:var(--muted)">新规则对旧 plan 报错，固定页面显示错乱</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td>Progress log 条目是否带 <code>- </code> 前缀从未规定</td><td class="path">convention</td><td style="color:var(--muted)">漏读或误读日志</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-2">ADR-2</button><button class="chip" type="button" data-adr="ADR-3">ADR-3</button></div></td></tr><tr><td>LLM 把长文档"转成更好读的版本"时会默默压缩、丢细节</td><td class="path">landmine</td><td style="color:var(--muted)">用户在 HTML 上确认了一个缺了约束或风险的方案</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button><button class="chip" type="button" data-adr="ADR-7">ADR-7</button></div></td></tr><tr><td>visual 文档生成后 md 继续被修改（interview、修订、Changing Course）</td><td class="path">missing concept</td><td style="color:var(--muted)">用户读的是旧版本却不知道</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-8">ADR-8</button></div></td></tr><tr><td>macOS <code>fs.watch</code> 一次保存触发多次事件</td><td class="path">landmine</td><td style="color:var(--muted)">页面抖动、重复解析</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></div></td></tr><tr><td>部分 agent 宿主会回收后台进程（superpowers visual-companion 文档记录了 Codex 等情况）</td><td class="path">history</td><td style="color:var(--muted)">server 在下一轮对话前被杀</td><td><div class="chips"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button><span class="chip">Risks</span></div></td></tr></tbody>
-    </table></div></div></details>
-    <details class="more" data-src="sec:open-questions"><summary>问题<small>9/9 已决</small></summary><div class="inner"><div class="qa"><b>Q1</b><p>拒绝后执行开始时是否再提一次？ <span>— 被 Q7 取代：执行开始前单独询问进度页</span> <span class="chips" style="display:inline-flex"><span class="chip">Q7</span></span></p><b>Q2</b><p>一个仓库同时进行多个方案？ <span>— 一个 worktree 一个 server</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-4">ADR-4</button></span></p><b>Q3</b><p>自动打开浏览器？ <span>— 是；复用 server 时打开对应方案页</span></p><b>Q4</b><p>visual 文档由 subagent 生成？ <span>— 是</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></span></p><b>Q5</b><p>一次同意覆盖全部，还是逐步询问？ <span>— 逐步询问</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></span></p><b>Q6</b><p>visual-impl 是否包含进度？ <span>— 不包含</span></p><b>Q7</b><p>询问时机？ <span>— 只在 <code>plan.md</code> 首稿完成后询问 visual；执行开始前询问进度页</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-9">ADR-9</button></span></p><b>Q8</b><p>visual 生成的 subagent 参考什么？ <span>— 只参考对应 md 文件</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-6">ADR-6</button></span></p><b>Q9</b><p>是否需要 <code>packages/</code> + npm + 打包？ <span>— 不需要</span> <span class="chips" style="display:inline-flex"><button class="chip" type="button" data-adr="ADR-10">ADR-10</button></span></p></div></div></details>
-    <details class="more" data-src="sec:assumptions"><summary>假设<small>2 条</small></summary><div class="inner"><ul style="margin:0;padding-left:18px;font-size:14px"><li>页面文案跟随方案语言；不做界面语言切换</li><li>空闲超时 2h</li></ul></div></details>
-  </section>
+<section class="sec" id="datasets">
+  <h2>数据集目录（V1） <small>点击数据集查看字段</small></h2>
+  <p class="lede">后两个数据集是为了让 <code>sum</code>、<code>avg</code>、<code>min</code>、<code>max</code> 有数字列可用：现有的事件数据集只能计数。</p>
+  <figure class="fig"><figcaption><b>来源表 → 数据集</b><span class="tag">由原文整理</span><button class="src-link" type="button" data-open="src-5">原文</button></figcaption><div class="diagram" data-links="sign_ins:ds-sign_ins app_sign_ins:ds-app_sign_ins launches:ds-launches active_users:ds-active_users users:ds-users sync_runs:ds-sync_runs webhook_attempts:ds-webhook_attempts" role="img" aria-label="数据集与来源表"><pre class="mermaid">flowchart LR
+  AR[(&quot;audit_record&quot;)] -- &quot;identity/sign_in&quot; --&gt; sign_ins
+  AR -- &quot;sso/authorized&quot; --&gt; app_sign_ins
+  AL[(&quot;application_launch（新增）&quot;)] --&gt; launches
+  sign_ins -. 成功事件 .-&gt; active_users
+  app_sign_ins -. 成功事件 .-&gt; active_users
+  launches -. 成功事件 .-&gt; active_users
+  UA[(&quot;user_account&quot;)] --&gt; users
+  DS[(&quot;directory_sync_run&quot;)] --&gt; sync_runs
+  WA[(&quot;webhook_attempt + webhook_delivery&quot;)] --&gt; webhook_attempts</pre></div></figure>
+</section>
 
-  <footer>以 md 为准 · <code>plan.md</code></footer></main>
+<section class="sec" id="roadmap">
+  <h2>路线 <small><button class="src-link" type="button" data-open="src-roadmap">原文</button></small></h2>
+  <div class="steps">
+    <button class="step" type="button" data-open="M1"><span class="mid">M1</span><p>后端查询核心</p><span class="v"><code>pytest</code> 用固定数据断言登录人数和每日活跃人数（先只算登录）、<code>sum</code>/<code>avg</code>/<code>min</code>/<code>max</code> 与 <code>cast</code>、空桶的补值，含 UTC+8 日界和夏令时；未知字段、<code>user_id</code> 作 property、类型不允许的聚合、缺秒或缺偏移的时间、不在桶边界上的时间都返回 422。</span></button><button class="step weak" type="button" data-open="M2"><span class="mid">M2</span><p>应用打开记录</p><span class="v"><code>pytest</code> 断言前 5 应用、同一人跨三类事件只算一次、外部登录计入、清理边界两侧；浏览器点开 <code>sso</code> 和 <code>link</code> 应用各一次，表里多两行。</span></button><button class="step" type="button" data-open="M3"><span class="mid">M3</span><p>前端</p><span class="v">截图显示三个组件；<code>pnpm turbo lint typecheck test build</code> 通过。</span></button><button class="step" type="button" data-open="M4"><span class="mid">M4</span><p>文档</p><span class="v"></span></button>
+  </div>
+</section>
+
+<section class="sec" id="risks">
+  <h2>风险 <small>pre-mortem</small> <small><button class="src-link" type="button" data-open="src-risks">原文</button></small></h2>
+  <div class="tw"><table><thead><tr><th>风险</th><th>影响</th><th>缓解</th></tr></thead><tbody><tr><td>某个查询扫过一整年审计，拖慢数据库</td><td><span class="pill warn">管理端变慢，登录也可能受影响</span></td><td style="color:var(--muted)">按粒度限制时间范围；实测 365 天约 2.7 s，只在管理端、且不常用；超出 ADR-2 预算就做预聚合</td></tr><tr><td>时区桶有错位（夏令时、跨月）</td><td><span class="pill warn">图上日期错一天</span></td><td style="color:var(--muted)">边界计算是纯函数，单测覆盖 <code>Asia/Shanghai</code>、<code>America/New_York</code> 的夏令时切换日和月末</td></tr><tr><td>漏校验字段，前端能按任意列分组</td><td><span class="pill warn">越权读个人信息</span></td><td style="color:var(--muted)">Pydantic 用 <code>Literal</code> 限定数据集字段，编译器只认目录里的列和角色；测试覆盖未知字段、<code>user_id</code> 作 property、对 <code>enum</code> 求 <code>sum</code> 都返回 422</td></tr><tr><td><code>avg</code> 在 PostgreSQL 上返回 <code>Decimal</code>，JSON 序列化成字符串</td><td><span class="pill warn">前端图表拿到字符串</span></td><td style="color:var(--muted)">编译器对 <code>avg</code> 结果统一转成 <code>float</code>；测试断言 JSON 中是数字</td></tr><tr><td>跳转端点被当成开放重定向</td><td><span class="pill warn">钓鱼</span></td><td style="color:var(--muted)">只跳到该应用登记的 URL；没有权限或应用已停用时返回 404</td></tr><tr><td>「活跃」定义和管理员的直觉不一致</td><td><span class="pill warn">数字被质疑</span></td><td style="color:var(--muted)">在目录和界面提示里写明口径；开放问题 1</td></tr><tr><td>应用打开记录无限增长</td><td><span class="pill warn">存储</span></td><td style="color:var(--muted)">保留 400 天，CLI 清理命令沿用 <code>sso-purge</code> 的做法，测试覆盖边界两侧</td></tr><tr><td>接真实 Launchpad 时改坏现有行为（分类标签、按类型筛选、新标签页）</td><td><span class="pill warn">员工打不开应用</span></td><td style="color:var(--muted)">现有 Launchpad 故事和 play 测试改用真实形状的数据后全部保留；手工点开 <code>sso</code> 和 <code>link</code> 各一个</td></tr></tbody></table></div>
+</section>
+
+<section class="sec" id="background">
+  <h2>背景</h2>
+  <figure class="fig"><figcaption><b>现有可用数据</b></figcaption><div class="tw" style="border:0;border-radius:0"><table class="datamap"><thead><tr><th>想看的</th><th>数据在哪</th><th>现状</th></tr></thead><tbody><tr><td>登录（成功、失败、方式、原因）</td><td style="color:var(--muted)"><code>audit_record</code>，<code>event_type = &quot;identity/sign_in&quot;</code>，<code>outcome</code>；方式和原因在 <code>details</code> JSON 里（<code>identity/signin.py:120-129,328</code>）</td><td><span class="pill ok">可用</span> 可用；有 <code>(event_type, occurred_at, id)</code> 索引</td></tr><tr><td>用户在应用里的 SSO 登录</td><td style="color:var(--muted)"><code>audit_record</code>，<code>event_type = &quot;sso/authorized&quot;</code>，带 <code>application_id</code>（<code>sso/oauth2/service.py:31,107</code>）</td><td><span class="pill ok">可用</span> 可用；包括应用自己发起的静默登录</td></tr><tr><td>从 Launchpad 打开应用</td><td style="color:var(--muted)">无</td><td><span class="pill err">缺失</span> <b>缺失</b>；而且生产 Launchpad 整页都用 <code>lib/mock.ts</code> 的假数据，没有调用 <code>GET /api/launchpad</code></td></tr><tr><td>用户数（按状态、来源、角色）</td><td style="color:var(--muted)"><code>user_account</code></td><td><span class="pill warn">受限</span> 可用，只有当前快照</td></tr><tr><td>会话</td><td style="color:var(--muted)">Redis，有 TTL（<code>identity/sessions.py:153-161</code>）</td><td><span class="pill warn">受限</span> 不能做历史统计；创建和结束有审计</td></tr><tr><td>上次登录时间</td><td style="color:var(--muted)"><code>user_account.last_sign_in_at</code></td><td><span class="pill warn">受限</span> 每次覆盖，没有历史</td></tr></tbody></table></div><p class="hint" style="padding-top:10px">管理员首页（<code>apps/web/components/admin/admin-index.tsx:25-28</code>）的数字都是写死的，后端没有任何统计接口。<button class="src-link" type="button" data-open="context">背景原文</button></p></figure>
+  <div class="grid g3" style="margin-top:14px">
+    <article class="card"><h3>目标</h3><div data-src='Goals'></div></article>
+    <article class="card"><h3>非目标</h3><div data-src='Non-goals'></div></article>
+    <article class="card"><h3>约束</h3><div data-src='Constraints'></div></article>
+  </div>
+  <div class="qa" style="margin-top:14px"><article class="card"><h3>1. 「活跃用户」怎么算？</h3><p class="a">登录成功 + 应用内 SSO 登录 + 打开应用（2026-11-11）</p><p class="alt" style="--x:0">当天至少有一次登录成功、应用内 SSO 登录或从 Launchpad 打开应用；changes: <code>active_users</code> 数据集里合并哪些事件。</p></article><article class="card"><h3>2. 谁能看统计？</h3><p class="a">仅管理员和 Owner，只看聚合（2026-11-11）</p><p class="alt" style="--x:0">只有管理员和 Owner，只看聚合；changes: 路由位置、是否允许按用户分组、隐私说明。</p></article><article class="card"><h3>3. 应用打开记录保留多久？</h3><p class="a">400 天，加 CLI 清理命令（2026-11-11）</p><p class="alt" style="--x:0">400 天（能做同比），加 <code>bedrock run</code> 清理命令；changes: 是否需要清理任务，以及能否做年度对比。</p></article></div>
+  <p class="hint" style="padding:8px 0 0"><button class="src-link" type="button" data-open="src-oq">原文</button></p>
+  <details class="more"><summary>盲点<small>10 条</small></summary><div class="inner"><div class="tw"><table><thead><tr><th>发现</th><th>类型</th><th>为什么会出问题</th><th>落在</th></tr></thead><tbody><tr><td>应用打开次数在服务端没有数据；生产 Launchpad 用 mock 应用（字符串 ID 如 <code>gitlab</code>），没有接 <code>GET /api/launchpad</code>（<code>app/(launchpad)/page.tsx:4</code>，<code>launchpad-view.tsx:40-45</code>）</td><td><span class="pill">missing concept</span></td><td style="color:var(--muted)">「前 5 应用」无从统计；只把卡片链接换成 <code>/open</code> 时 ID 不是 UUID，打不开也记不到</td><td>ADR-3、Roadmap 2</td></tr><tr><td>未知用户的登录失败没有 <code>subject_user_id</code>（<code>identity/signin.py:129</code>）</td><td><span class="pill">landmine</span></td><td style="color:var(--muted)"><code>sign_ins</code> 上 <code>count_distinct(user_id)</code> 只统计能认出的人，和 <code>count</code> 不是同一口径</td><td>数据集目录说明</td></tr><tr><td>命名的 <code>FROM (VALUES …) AS name(cols)</code> 是 PostgreSQL 写法；<code>values(...).data(...).cte()</code> 才可移植（SQLAlchemy 2.1 <code>sql/_selectable_constructors.py:787-825</code>）</td><td><span class="pill">convention</span></td><td style="color:var(--muted)">写成子查询形式就破坏可移植性</td><td>ADR-4</td></tr><tr><td>登录方式和失败原因只在 <code>audit_record.details</code>（JSON）里；ADR 0005 写明「V1 没有查询会搜 JSON 列」</td><td><span class="pill">convention</span></td><td style="color:var(--muted)">按方式分组就要读 JSON，等于修改 ADR 0005 的那条结论</td><td>ADR-5</td></tr><tr><td>会话在 Redis，没有历史；<code>last_sign_in_at</code> 被覆盖</td><td><span class="pill">landmine</span></td><td style="color:var(--muted)">「活跃人数」不能按会话算，只能按事件算</td><td>Open Question 1</td></tr><tr><td>没有组织时区设置；前端按浏览器时区算日界（<code>lib/admin-api.ts</code> <code>dayStart()</code>）</td><td><span class="pill">convention</span></td><td style="color:var(--muted)">后端按 UTC 分桶会和管理员看到的日期差 8 小时</td><td>ADR-4</td></tr><tr><td><code>require_administrator</code> 已挂在 <code>/api/admin</code> 路由上（<code>api/routers/admin/__init__.py:17</code>）</td><td><span class="pill">prior art</span></td><td style="color:var(--muted)">权限不必另写</td><td>ADR-6</td></tr><tr><td>列表接口已有 <code>{field, op, value}</code> / <code>{and: [...]}</code> 筛选格式（<code>docs/developer/admin-api.md:46</code>）</td><td><span class="pill">prior art</span></td><td style="color:var(--muted)">自创一种筛选格式就成了第二套约定</td><td>ADR-1</td></tr><tr><td>CSRF 由中间件按 Origin 检查（<code>api/middleware.py:1</code>）</td><td><span class="pill">convention</span></td><td style="color:var(--muted)">用 <code>POST</code> 传查询体不需要额外处理</td><td>ADR-1</td></tr><tr><td>审计没有 <code>(outcome, occurred_at)</code> 索引</td><td><span class="pill">landmine</span></td><td style="color:var(--muted)">可以先按 <code>event_type</code> 索引缩小范围再筛 <code>outcome</code>，现有规模没问题；之后规模大了才需要预聚合</td><td>Risk</td></tr></tbody></table></div><p class="hint" style="padding:8px 0 0"><button class="src-link" type="button" data-open="src-blind">原文</button></p></div></details>
+  <details class="more"><summary>假设<small>4 条</small></summary><div class="inner"><div data-src='Assumptions'></div></div></details>
+  <details class="more"><summary>BedRock 上游提议<small>用户将提 issue</small></summary><div class="inner"><div data-src='"BedRock 上游提议（用户将提 issue）"'></div></div></details>
+</section>
+
+<footer>以 md 为准 · <a href="../plan.md">plan.md</a></footer>
+</main>
 </div>
 
 
+<template data-sum="src-1" data-title="组件与数据流"><p class="label">原文</p><div data-src='Architecture > code[lang=mermaid]'></div><p class="label">原文</p><div data-src='Architecture > p'></div></template>
+<template data-sum="src-2" data-title="一个查询由哪些部分组成"><p class="label">原文</p><div data-src='查询结构'></div></template>
+<template data-sum="src-3" data-title="支持的查询形状"><p class="label">原文</p><div data-src='支持的查询形状'></div></template>
+<template data-sum="src-4" data-title="三个例子"><p class="label">原文</p><div data-src='三个例子'></div></template>
+<template data-sum="src-5" data-title="来源表 → 数据集"><p class="label">原文</p><div data-src='"数据集目录（V1）"'></div></template>
+<template data-sum="src-roadmap" data-title="Roadmap"><p class="label">原文</p><div data-src='Roadmap'></div></template>
+<template data-sum="src-risks" data-title="Risks (pre-mortem)"><p class="label">原文</p><div data-src='"Risks (pre-mortem)"'></div></template>
+<template data-sum="src-oq" data-title="Open Questions"><p class="label">原文</p><div data-src='"Open Questions"'></div></template>
+<template data-sum="src-blind" data-title="Blindspots"><p class="label">原文</p><div data-src='Blindspots'></div></template>
+<template data-sum="header" data-title="头部"><p class="label">原文</p><div data-src='li'></div></template>
+<template data-sum="glance" data-title="At a Glance"><p class="label">原文</p><div data-src='"At a Glance"'></div></template>
+<template data-sum="context" data-title="Context"><p class="label">原文</p><div data-src='Context'></div></template>
+<template data-sum="opt-A" data-title="Options · A"><p class="label">原文</p><div data-src='A'></div></template>
+<template data-sum="opt-B" data-title="Options · B"><p class="label">原文</p><div data-src='B'></div></template>
+<template data-sum="opt-C" data-title="Options · C"><p class="label">原文</p><div data-src='C'></div></template>
+<template data-sum="opt-D" data-title="Options · D"><p class="label">原文</p><div data-src='D'></div></template>
+<template data-sum="ADR-1" data-title="ADR-1"><h3>前端用 JSON 语义查询，不用类 SQL</h3><dl class="kv"><dt>状态</dt><dd><span class="pill ok">accepted</span></dd><dt>放弃</dt><dd>类 SQL（B）；固定端点（C）</dd></dl><p class="label">原文</p><div data-src='ADR-1'></div></template>
+<template data-sum="ADR-2" data-title="ADR-2"><h3>直接查业务表，不做预聚合</h3><dl class="kv"><dt>状态</dt><dd><span class="pill ok">accepted</span></dd><dt>放弃</dt><dd>每晚预聚合，或结果缓存</dd></dl><p class="label">原文</p><div data-src='ADR-2'></div></template>
+<template data-sum="ADR-3" data-title="ADR-3"><h3>用跳转端点记录应用打开</h3><dl class="kv"><dt>状态</dt><dd><span class="pill ok">accepted</span></dd><dt>放弃</dt><dd>前端打点（<code>navigator.sendBeacon</code>）；写进审计</dd></dl><p class="label">原文</p><div data-src='ADR-3'></div></template>
+<template data-sum="ADR-4" data-title="ADR-4"><h3>时间一律带秒和时区偏移；后端转成 UTC 再查询，按请求的时区分桶</h3><dl class="kv"><dt>状态</dt><dd><span class="pill ok">accepted</span></dd><dt>放弃</dt><dd>按 UTC 分桶后由前端合并；<code>date_trunc</code> 加 <code>AT TIME ZONE</code>；在运行时配置里加组织时区</dd></dl><p class="label">原文</p><div data-src='ADR-4'></div></template>
+<template data-sum="ADR-5" data-title="ADR-5"><h3>字段可以读审计 <code>details</code> 里的固定键</h3><dl class="kv"><dt>状态</dt><dd><span class="pill ok">accepted</span></dd><dt>放弃</dt><dd>给审计加 <code>method</code> 列再回填</dd></dl><p class="label">原文</p><div data-src='ADR-5'></div></template>
+<template data-sum="ADR-6" data-title="ADR-6"><h3>只有管理员能查，只给聚合结果</h3><dl class="kv"><dt>状态</dt><dd><span class="pill ok">accepted</span></dd><dt>放弃</dt><dd>让员工看自己的数据；按用户分组</dd></dl><p class="label">原文</p><div data-src='ADR-6'></div></template>
+<template data-sum="ADR-7" data-title="ADR-7"><h3>查询的列分 properties 和 metrics</h3><dl class="kv"><dt>状态</dt><dd><span class="pill ok">accepted</span></dd><dt>放弃</dt><dd>由前端对输入字段做 <code>cast</code>；由目录预定义命名指标</dd></dl><p class="label">原文</p><div data-src='ADR-7'></div></template>
+<template data-sum="ADR-8" data-title="ADR-8"><h3>分析是可选插件 <code>plugins/analytics</code></h3><dl class="kv"><dt>状态</dt><dd><span class="pill ok">accepted</span></dd><dt>放弃</dt><dd>按 <code>&lt;module&gt;.router</code> 猜路径挂载；直接等 BedRock 发版；核心内带 manifest 的子模块；普通领域包</dd></dl><p class="label">原文</p><div data-src='ADR-8'></div></template>
+<template data-sum="M1" data-title="M1"><h3>M1 · 后端查询核心</h3><dl class="kv"><dt>交付</dt><dd>目录、时区分桶、编译器、<code>POST /query</code> 和 <code>GET /catalogue</code>，以及 <code>sign_ins</code>、<code>app_sign_ins</code>、<code>users</code>、<code>sync_runs</code>、<code>webhook_attempts</code> 五个数据集</dd><dt>验证</dt><dd><code>pytest</code> 用固定数据断言登录人数和每日活跃人数（先只算登录）、<code>sum</code>/<code>avg</code>/<code>min</code>/<code>max</code> 与 <code>cast</code>、空桶的补值，含 UTC+8 日界和夏令时；未知字段、<code>user_id</code> 作 property、类型不允许的聚合、缺秒或缺偏移的时间、不在桶边界上的时间都返回 422。</dd></dl><p class="label">原文</p><div data-src='Roadmap > li[1]'></div></template>
+<template data-sum="M2" data-title="M2"><h3>M2 · 应用打开记录</h3><dl class="kv"><dt>交付</dt><dd>生产 Launchpad 接 <code>GET /api/launchpad</code>；<code>application_launch</code> 表、迁移、跳转端点、卡片链接、400 天清理命令；加上 <code>launches</code> 数据集，<code>active_users</code> 合并三类事件</dd><dt>验证</dt><dd><code>pytest</code> 断言前 5 应用、同一人跨三类事件只算一次、外部登录计入、清理边界两侧；浏览器点开 <code>sso</code> 和 <code>link</code> 应用各一次，表里多两行。</dd></dl><p class="label">原文</p><div data-src='Roadmap > li[2]'></div></template>
+<template data-sum="M3" data-title="M3"><h3>M3 · 前端</h3><dl class="kv"><dt>交付</dt><dd>chart 组件、<code>analytics-api.ts</code>、首页三个组件和 Storybook</dd><dt>验证</dt><dd>截图显示三个组件；<code>pnpm turbo lint typecheck test build</code> 通过。</dd></dl><p class="label">原文</p><div data-src='Roadmap > li[3]'></div></template>
+<template data-sum="M4" data-title="M4"><h3>M4 · 文档</h3><dl class="kv"><dt>交付</dt><dd><code>docs/developer/analytics.md</code>（目录、查询格式、加数据集的方法）、<code>admin-api.md</code>、修订 ADR 0005、新增 ADR（查询形式与 properties/metrics、打开记录）。</dd><dt>验证</dt><dd></dd></dl><p class="label">原文</p><div data-src='Roadmap > li[4]'></div></template>
+<template data-sum="node-W" data-title="前端组件 · useAnalytics(query)"><h3>前端组件 · useAnalytics(query)</h3><ul class="facts-list"><li><code>apps/web/lib/analytics-api.ts</code>：<code>runAnalytics(query)</code>，基于生成的客户端；<code>lastDays(n)</code> 时间范围助手</li><li>管理员首页三个组件：KPI 卡（近 7 日登录人数）、柱状图（前 5 应用）、折线图（近 7 日每日活跃人数）</li><li>接口返回 404 时显示「未启用数据分析」（ADR-8）</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-1">ADR-1</button><button class="chip" type="button" data-open="ADR-7">ADR-7</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M3">M3</button></span></dd></dl></template>
+<template data-sum="node-R" data-title="plugins/analytics/router.py"><h3>plugins/analytics/router.py</h3><ul class="facts-list"><li>路由自己加 <code>require_administrator</code>，路径 <code>/api/admin/analytics/...</code></li><li><code>POST /api/admin/analytics/query</code> 与 <code>GET /api/admin/analytics/catalogue</code></li><li>插件路由经 BedRock 注册表挂载；过渡期用 BedRock hooks</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-8">ADR-8</button><button class="chip" type="button" data-open="ADR-6">ADR-6</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M1">M1</button></span></dd></dl></template>
+<template data-sum="node-S" data-title="plugins.analytics.service.run"><h3>plugins.analytics.service.run</h3><ul class="facts-list"><li>服务端用 Pydantic 校验后编译成 SQLAlchemy Core</li><li>结果的每列标明 <code>kind</code>（<code>property</code> 或 <code>metric</code>）和 <code>type</code></li><li><code>avg</code> 结果统一转成 <code>float</code>（Risks）</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-1">ADR-1</button><button class="chip" type="button" data-open="ADR-7">ADR-7</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M1">M1</button></span></dd></dl></template>
+<template data-sum="node-C" data-title="catalogue：数据集定义"><h3>catalogue：数据集定义</h3><ul class="facts-list"><li>字段的角色由目录决定：类型，以及能否作 property、作 metric、作筛选</li><li><code>details</code> 的固定键可声明为字段（ADR-5）</li><li>V1 七个数据集（见「数据集」）</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-7">ADR-7</button><button class="chip" type="button" data-open="ADR-5">ADR-5</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M1">M1</button></span></dd></dl></template>
+<template data-sum="node-B" data-title="buckets：时区边界"><h3>buckets：时区边界</h3><ul class="facts-list"><li>用 <code>zoneinfo</code> 把 <code>[from, to)</code> 切成本地时间的小时、日、周（周一开始）或月，得到一串 UTC 边界</li><li><code>sa.values(...).data(bounds).cte(&quot;bucket&quot;)</code> 左连接数据；没有数据的桶返回 0</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-4">ADR-4</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M1">M1</button></span></dd></dl></template>
+<template data-sum="node-DB" data-title="audit_record · application_launch · user_account / application"><h3>audit_record · application_launch · user_account / application</h3><ul class="facts-list"><li>直接读业务表，不做预聚合</li><li>时间范围最多 366 天；<code>hour</code> 最多 7 天，<code>day</code> 最多 92 天；返回最多 100 行</li><li>实测 365 天按天去重 2.7 s；超预算就做按天预聚合</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-2">ADR-2</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M1">M1</button></span></dd></dl></template>
+<template data-sum="node-L" data-title="Launchpad 卡片"><h3>Launchpad 卡片</h3><ul class="facts-list"><li>生产 Launchpad 改为读取已有的 <code>GET /api/launchpad</code>，mock 只留给 Storybook</li><li>卡片链接改成 <code>/open</code> 地址，<code>link</code> 应用仍在新标签页打开</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-3">ADR-3</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M2">M2</button></span></dd></dl></template>
+<template data-sum="node-A" data-title="access.service.record_launch"><h3>access.service.record_launch</h3><ul class="facts-list"><li>先检查 <code>can_access</code>，记一行，再 302</li><li><code>application_launch</code> 只插入，保留 400 天，由 CLI 命令清理</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-3">ADR-3</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M2">M2</button></span></dd></dl></template>
+<template data-sum="node-APP" data-title="应用 URL"><h3>应用 URL</h3><ul class="facts-list"><li>只跳到已登记的地址，所以不会变成开放重定向</li><li>没有权限或应用已停用时返回 404（Risks）</li></ul><dl class="kv"><dt>相关决策</dt><dd><span class="chips"><button class="chip" type="button" data-open="ADR-3">ADR-3</button></span></dd><dt>里程碑</dt><dd><span class="chips"><button class="chip" type="button" data-open="M2">M2</button></span></dd></dl></template>
+<template data-sum="ds-sign_ins" data-title="sign_ins"><h3><code>sign_ins</code></h3><dl class="kv"><dt>来源</dt><dd><code>audit_record</code> 中 <code>event_type = identity/sign_in</code></dd><dt>时间字段</dt><dd><code>occurred_at</code></dd><dt>properties</dt><dd><code>outcome</code>、<code>method</code>、<code>reason</code>（后两个来自 <code>details</code>）</dd><dt>metric 可用的字段</dt><dd><code>user_id</code>（<code>subject_user_id</code>；未知用户的失败为空，<code>count_distinct</code> 不计入）</dd></dl><p class="label">原文</p><div data-src='"数据集目录（V1）" > tr[1]'></div></template>
+<template data-sum="ds-app_sign_ins" data-title="app_sign_ins"><h3><code>app_sign_ins</code></h3><dl class="kv"><dt>来源</dt><dd><code>audit_record</code> 中 <code>event_type = sso/authorized</code></dd><dt>时间字段</dt><dd><code>occurred_at</code></dd><dt>properties</dt><dd><code>application</code>、<code>application.kind</code></dd><dt>metric 可用的字段</dt><dd><code>user_id</code></dd></dl><p class="label">原文</p><div data-src='"数据集目录（V1）" > tr[2]'></div></template>
+<template data-sum="ds-launches" data-title="launches"><h3><code>launches</code></h3><dl class="kv"><dt>来源</dt><dd><code>application_launch</code></dd><dt>时间字段</dt><dd><code>occurred_at</code></dd><dt>properties</dt><dd><code>application</code>、<code>application.kind</code>、<code>application.category</code></dd><dt>metric 可用的字段</dt><dd><code>user_id</code></dd></dl><p class="label">原文</p><div data-src='"数据集目录（V1）" > tr[3]'></div></template>
+<template data-sum="ds-active_users" data-title="active_users"><h3><code>active_users</code></h3><dl class="kv"><dt>来源</dt><dd>上面三类成功事件的 <code>UNION ALL</code>（<code>user_id</code>、<code>occurred_at</code>）</dd><dt>时间字段</dt><dd><code>occurred_at</code></dd><dt>properties</dt><dd>无</dd><dt>metric 可用的字段</dt><dd><code>user_id</code></dd></dl><p class="label">原文</p><div data-src='"数据集目录（V1）" > tr[4]'></div></template>
+<template data-sum="ds-users" data-title="users"><h3><code>users</code></h3><dl class="kv"><dt>来源</dt><dd><code>user_account</code></dd><dt>时间字段</dt><dd><code>created_at</code></dd><dt>properties</dt><dd><code>status</code>、<code>source</code>、<code>role</code></dd><dt>metric 可用的字段</dt><dd>无（只用 <code>count</code>）</dd></dl><p class="label">原文</p><div data-src='"数据集目录（V1）" > tr[5]'></div></template>
+<template data-sum="ds-sync_runs" data-title="sync_runs"><h3><code>sync_runs</code></h3><dl class="kv"><dt>来源</dt><dd><code>directory_sync_run</code></dd><dt>时间字段</dt><dd><code>started_at</code></dd><dt>properties</dt><dd><code>provider</code>（<code>{id, name}</code>）、<code>status</code></dd><dt>metric 可用的字段</dt><dd><code>created</code>、<code>updated</code>、<code>deactivated</code>、<code>failed</code>（<code>integer</code>）</dd></dl><p class="label">原文</p><div data-src='"数据集目录（V1）" > tr[6]'></div></template>
+<template data-sum="ds-webhook_attempts" data-title="webhook_attempts"><h3><code>webhook_attempts</code></h3><dl class="kv"><dt>来源</dt><dd><code>webhook_attempt</code> 关联 <code>webhook_delivery</code></dd><dt>时间字段</dt><dd><code>attempted_at</code></dd><dt>properties</dt><dd><code>application</code>、<code>status_code</code>、<code>event_type</code></dd><dt>metric 可用的字段</dt><dd><code>duration_ms</code>（<code>integer</code>）</dd></dl><p class="label">原文</p><div data-src='"数据集目录（V1）" > tr[7]'></div></template>
 
-<script>
-// Interaction only: every piece of content is already in the DOM above. Relations live in attributes:
-// .node[data-comp], g[data-from][data-to][data-label][data-dashed], [data-comps] (ADR rows, milestones),
-// [data-inspect="kind:id"] panels, [data-adr] / [data-comp-chip] jump buttons.
-(() => {
-  const map = document.getElementById('map');
-  const svg = document.getElementById('edges');
-  const edges = [...svg.querySelectorAll('g[data-from]')];
-  const reset = document.getElementById('reset');
-  const panels = [...document.querySelectorAll('[data-inspect]')];
-  const node = id => map.querySelector('.node[data-comp="' + CSS.escape(id) + '"]');
-  const NS = 'http://www.w3.org/2000/svg';
-  let sel = null;
-
-  function draw() {
-    if (getComputedStyle(svg).display === 'none') return;
-    const box = map.getBoundingClientRect();
-    const rect = id => { const b = node(id).getBoundingClientRect(); return { l: b.left - box.left, r: b.right - box.left, t: b.top - box.top, b: b.bottom - box.top, cx: (b.left + b.right) / 2 - box.left, cy: (b.top + b.bottom) / 2 - box.top }; };
-    svg.setAttribute('viewBox', '0 0 ' + box.width + ' ' + box.height);
-    for (const g of edges) {
-      const a = rect(g.dataset.from), b = rect(g.dataset.to), same = Math.abs(a.cx - b.cx) < 20;
-      let d, x, y;
-      if (same && b.t - a.b < 40) { d = 'M' + a.cx + ' ' + a.b + 'V' + (b.t - 2); x = a.cx + 6; y = (a.b + b.t) / 2 + 4; }
-      else if (same) { const o = 16; d = 'M' + a.r + ' ' + a.cy + 'C' + (a.r + o) + ' ' + a.cy + ' ' + (b.r + o) + ' ' + b.cy + ' ' + (b.r + 2) + ' ' + b.cy; x = a.r + o + 4; y = (a.cy + b.cy) / 2; }
-      else { const mx = (a.r + b.l - 2) / 2; d = 'M' + a.r + ' ' + a.cy + 'C' + mx + ' ' + a.cy + ' ' + mx + ' ' + b.cy + ' ' + (b.l - 2) + ' ' + b.cy; x = mx; y = (a.cy + b.cy) / 2 - 6; }
-      const path = document.createElementNS(NS, 'path');
-      path.setAttribute('d', d);
-      if (g.hasAttribute('data-dashed')) path.setAttribute('class', 'dashed');
-      g.replaceChildren(path);
-      if (g.dataset.label) {
-        const text = document.createElementNS(NS, 'text');
-        text.setAttribute('x', x); text.setAttribute('y', y); text.setAttribute('text-anchor', same ? 'start' : 'middle');
-        text.textContent = g.dataset.label;
-        g.append(text);
-      }
-    }
-    paint();
-  }
-
-  function highlighted() {
-    if (!sel) return null;
-    if (sel.kind === 'comp') {
-      const rel = new Set();
-      for (const g of edges) { if (g.dataset.from === sel.id) rel.add(g.dataset.to); if (g.dataset.to === sel.id) rel.add(g.dataset.from); }
-      return { main: new Set([sel.id]), rel };
-    }
-    const owner = sel.kind === 'adr' ? document.getElementById(sel.id) : document.querySelector('.step[data-ms="' + CSS.escape(sel.id) + '"]');
-    return { main: new Set((owner?.dataset.comps || '').split(' ').filter(Boolean)), rel: new Set() };
-  }
-
-  function paint() {
-    const h = highlighted();
-    map.classList.toggle('has-sel', !!h);
-    reset.hidden = !h;
-    for (const n of map.querySelectorAll('.node')) {
-      const id = n.dataset.comp;
-      n.classList.toggle('is-sel', !!h && h.main.has(id));
-      n.classList.toggle('is-rel', !!h && h.rel.has(id));
-      n.setAttribute('aria-pressed', String(!!h && h.main.has(id)));
-    }
-    for (const g of edges) {
-      const on = !!h && (sel.kind === 'comp' ? g.dataset.from === sel.id || g.dataset.to === sel.id : h.main.has(g.dataset.from) && h.main.has(g.dataset.to));
-      g.classList.toggle('on', on);
-      g.querySelector('path')?.setAttribute('marker-end', on ? 'url(#ah-on)' : 'url(#ah)');
-    }
-    document.querySelectorAll('.step').forEach(s => s.classList.toggle('is-sel', sel?.kind === 'ms' && sel.id === s.dataset.ms));
-    const key = sel ? sel.kind + ':' + sel.id : '';
-    const shown = panels.find(p => p.dataset.inspect === key) || panels[0];
-    for (const p of panels) p.hidden = p !== shown;
-  }
-
-  const select = next => { sel = next && sel && next.kind === sel.kind && next.id === sel.id ? null : next; paint(); };
-
-  function toggleAdr(id, { open, scroll } = {}) {
-    const row = document.getElementById(id), detail = document.getElementById('d-' + id);
-    const expand = open ?? row.getAttribute('aria-expanded') !== 'true';
-    row.setAttribute('aria-expanded', String(expand));
-    detail.hidden = !expand;
-    if (expand) { sel = { kind: 'adr', id }; paint(); }
-    if (scroll) { row.scrollIntoView({ block: 'start' }); row.focus({ preventScroll: true }); }
-  }
-
-  document.addEventListener('click', e => {
-    const t = e.target.closest('[data-comp],[data-comp-chip],[data-adr],[data-row],[data-ms],#reset');
-    if (!t) return;
-    if (t.id === 'reset') { sel = null; paint(); }
-    else if (t.dataset.comp) select({ kind: 'comp', id: t.dataset.comp });
-    else if (t.dataset.compChip) { sel = { kind: 'comp', id: t.dataset.compChip }; paint(); document.getElementById('architecture').scrollIntoView(); }
-    else if (t.dataset.adr) toggleAdr(t.dataset.adr, { open: true, scroll: true });
-    else if (t.dataset.row) toggleAdr(t.dataset.row);
-    else if (t.dataset.ms) { select({ kind: 'ms', id: t.dataset.ms }); if (sel) document.getElementById('architecture').scrollIntoView(); }
-  });
-  document.addEventListener('keydown', e => {
-    const row = e.target.closest?.('[data-row]');
-    if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleAdr(row.dataset.row); }
-    if (e.key === 'Escape' && sel) { sel = null; paint(); }
-  });
-  new ResizeObserver(draw).observe(map);
-  draw();
-
-  // Table of contents follows the reading position.
-  const links = [...document.querySelectorAll('.toc a')];
-  const io = new IntersectionObserver(entries => {
-    for (const en of entries) if (en.isIntersecting) links.forEach(a => a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + en.target.id)));
-  }, { rootMargin: '-20% 0px -70% 0px' });
-  document.querySelectorAll('.doc-section').forEach(s => io.observe(s));
-
-  // Theme: own toggle when opened as a file; follows the viewer when embedded (sandboxed iframe gets a message).
-  const btn = document.getElementById('theme');
-  const setTheme = theme => { document.documentElement.dataset.theme = theme; btn.textContent = theme === 'dark' ? '浅色' : '暗色'; };
-  btn.addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
-  window.addEventListener('message', e => {
-    const theme = e.source === window.parent && e.data?.type === 'plan-theme' ? e.data.theme : null;
-    if (theme === 'dark' || theme === 'light') { setTheme(theme); btn.hidden = true; }
-  });
-  setTheme(document.documentElement.dataset.theme);
-})();
-</script>
-<script type="module">
-// Syntax highlighting for pre > code.language-*; code stays plain text if the CDN is unreachable.
-const blocks = document.querySelectorAll('pre > code[class*="language-"]:not(.language-mermaid):not(.language-plaintext)');
-if (blocks.length) {
-  try {
-    const { default: hljs } = await import('https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/es/highlight.min.js');
-    for (const code of blocks) {
-      const language = [...code.classList].find(c => c.startsWith('language-')).slice(9);
-      if (!hljs.getLanguage(language)) continue;
-      code.innerHTML = hljs.highlight(code.textContent, { language }).value;
-      code.classList.add('hljs');
-    }
-  } catch { /* offline: keep plain code */ }
-}
-</script>
-</body></html>
+<!-- generated block, written by visual-status.mjs --init and replaced by --stamp: do not edit -->
+<link rel="stylesheet" id="visual-kit" href="visual-kit.css">
+<script id="visual-kit-js" src="visual-kit.js"></script>
+<script type="application/json" id="plan-sources">{}</script>
+</body>
+</html>
