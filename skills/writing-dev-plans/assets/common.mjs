@@ -6,6 +6,11 @@ export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
+/** Escaped text with `code` spans rendered, nothing else; for titles, steps and one-line fields. @param {unknown} s */
+export function inline(s) {
+  return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
 /** @param {string} url */
 export async function getJSON(url) {
   const response = await fetch(url);

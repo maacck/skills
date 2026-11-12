@@ -1,5 +1,5 @@
 // @ts-check
-import { badge, esc, getJSON, renderDiagrams, renderMarkdown, setLook, subscribe, tone } from './common.mjs';
+import { badge, esc, getJSON, inline, renderDiagrams, renderMarkdown, setLook, subscribe, tone } from './common.mjs';
 import { renderProgress } from './progress.mjs';
 
 const dir = decodeURIComponent(location.pathname.slice('/p/'.length));
@@ -46,13 +46,13 @@ async function renderDoc(doc, el, file) {
   const parts = await Promise.all(doc.units.filter(unit => unit.kind !== 'header' && unit.id !== glanceId).map(async unit => {
     const id = esc(unit.id);
     const adr = unit.kind === 'adr' && adrs.get(unit.id);
-    if (adr) return { unit, html: `<article class="decision" id="${id}"><header><h3>${esc(adr.id)} · ${esc(adr.title)}</h3>${badge(adr.status || '—', tone(adr.status))}</header><dl>${await field('Decision', 'Decision', adr)}${await field('Consequences', 'Consequences', adr)}${await field('Rejected', 'Rejected', adr, 'rejected')}</dl>${await source(unit)}</article>` };
+    if (adr) return { unit, html: `<article class="decision" id="${id}"><header><h3>${esc(adr.id)} · ${inline(adr.title)}</h3>${badge(adr.status || '—', tone(adr.status))}</header><dl>${await field('Decision', 'Decision', adr)}${await field('Consequences', 'Consequences', adr)}${await field('Rejected', 'Rejected', adr, 'rejected')}</dl>${await source(unit)}</article>` };
     const task = unit.kind === 'task' && tasks.get(unit.id);
-    if (task) return { unit, html: `<article id="${id}"><header><h3>${esc(task.id)} · ${esc(task.name)}</h3>${badge(task.status, tone(task.status))}</header><p>Depends on: ${esc(task.dependsOn === null ? '—' : task.dependsOn.join(', ') || 'none')}</p><ul>${task.steps.map(step => `<li>${step.done ? '☑' : '☐'} ${esc(step.text)}</li>`).join('')}</ul><p class="verify">Verify: ${esc(task.verify || '—')}</p>${task.files ? `<code>${esc(task.files)}</code>` : ''}${await source(unit)}</article>` };
+    if (task) return { unit, html: `<article id="${id}"><header><h3>${esc(task.id)} · ${inline(task.name)}</h3>${badge(task.status, tone(task.status))}</header><p>Depends on: ${esc(task.dependsOn === null ? '—' : task.dependsOn.join(', ') || 'none')}</p><ul>${task.steps.map(step => `<li class="${step.done ? 'is-done' : ''}"><span class="sr">${step.done ? '已完成：' : '未完成：'}</span>${inline(step.text)}</li>`).join('')}</ul><p class="verify">Verify: ${inline(task.verify || '—')}</p>${task.files ? `<p class="files">Files: ${inline(task.files)}</p>` : ''}${await source(unit)}</article>` };
     const milestone = unit.kind === 'milestone' && milestones.get(unit.id);
     if (milestone) {
       const done = milestone.tasks.filter(taskId => statusKind(implTasks.get(taskId)?.status) === 'done').length;
-      return { unit, html: `<div id="${id}"><strong>${esc(milestone.id)} · ${esc(milestone.name)}</strong><span>${esc(milestone.tasks.join(', ') || '—')}</span><b>${done} / ${milestone.tasks.length}</b>${milestone.verify ? `<p class="verify">Verify: ${esc(milestone.verify)}</p>` : ''}${await source(unit)}</div>` };
+      return { unit, html: `<div id="${id}"><strong>${esc(milestone.id)} · ${inline(milestone.name)}</strong><span>${esc(milestone.tasks.join(', ') || '—')}</span><b>${done} / ${milestone.tasks.length}</b>${milestone.verify ? `<p class="verify">Verify: ${inline(milestone.verify)}</p>` : ''}${await source(unit)}</div>` };
     }
     return { unit, html: `<section class="unit" id="${id}">${await markdown(unit.md)}</section>` };
   }));
@@ -72,12 +72,12 @@ async function renderDoc(doc, el, file) {
   if (doc.tasks.length) notes.splice(1, 0, ['Tasks', doc.tasks.length]);
   if (doc.milestones.length) notes.splice(1, 0, ['Milestones', doc.milestones.length]);
   const sections = parts.filter(part => part.unit.kind === 'section');
-  el.innerHTML = `${doc.header.Goal ? `<div class="section-lead"><h2>${esc(doc.title || file)}</h2><p>${esc(doc.header.Goal.value)}</p></div>` : ''}
+  el.innerHTML = `${doc.header.Goal ? `<div class="section-lead"><h2>${esc(doc.title || file)}</h2><p>${inline(doc.header.Goal.value)}</p></div>` : ''}
     ${doc.glance ? `<section class="glance" id="${esc(glanceId)}">${await markdown(doc.glance.md)}</section>` : ''}
     <div class="document"><div class="content">${content}</div>
       <aside class="rail">
         <section><h2>Sheet notes</h2><dl>${notes.map(([key, value]) => `<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></section>
-        ${sections.length ? `<section><h2>On this sheet</h2><nav>${sections.map(part => `<a href="#${esc(part.unit.id)}" data-jump="${esc(part.unit.id)}">${esc(part.unit.title || part.unit.id)}</a>`).join('')}</nav></section>` : ''}
+        ${sections.length ? `<section><h2>On this sheet</h2><nav>${sections.map(part => `<a href="#${esc(part.unit.id)}" data-jump="${esc(part.unit.id)}">${inline(part.unit.title || part.unit.id)}</a>`).join('')}</nav></section>` : ''}
       </aside></div>`;
   // Jump in place: a real hash change would be read as a tab switch.
   el.querySelectorAll('[data-jump]').forEach(link => link.addEventListener('click', event => {
